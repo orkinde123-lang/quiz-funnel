@@ -74,8 +74,7 @@
     }
     .pill-body {
       border-radius: 999px;
-      border: 1.5px solid rgba(224,225,221,0.10);
-      backdrop-filter: blur(2px);
+      border: 1px solid rgba(130,147,177,0.10);
       position: relative;
       overflow: hidden;
     }
@@ -83,7 +82,21 @@
       content:'';
       position:absolute; inset:0;
       border-radius:inherit;
-      background: radial-gradient(circle at 50% 50%, rgba(224,225,221,0.10), transparent 70%);
+      background: radial-gradient(circle at 50% 50%, rgba(224,225,221,0.06), transparent 70%);
+    }
+
+    /* ─── Gradient text ─── */
+    .grad-line1 {
+      background: linear-gradient(to bottom, #e0e1dd 40%, rgba(224,225,221,0.72));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .grad-line2 {
+      background: linear-gradient(135deg, #8293b1 0%, #d0d8e4 50%, #8293b1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
     /* ─── Answer buttons ─── */
@@ -458,11 +471,11 @@
 
     /* ─── HeroGeometric Background ─── */
     const PILLS = [
-      { w:600, h:140, r: 12,  d:'0.3s', pos:{ left:'-8%',  top:'18%'    }, g:'rgba(70,89,117,0.22)'   },
-      { w:500, h:120, r:-15,  d:'0.5s', pos:{ right:'-4%', top:'65%'    }, g:'rgba(130,147,177,0.16)' },
-      { w:300, h:80,  r: -8,  d:'0.4s', pos:{ left:'6%',   bottom:'8%'  }, g:'rgba(22,37,71,0.30)'    },
-      { w:200, h:60,  r: 20,  d:'0.6s', pos:{ right:'16%', top:'10%'    }, g:'rgba(70,89,117,0.18)'   },
-      { w:160, h:44,  r:-25,  d:'0.7s', pos:{ left:'22%',  top:'6%'     }, g:'rgba(130,147,177,0.13)' },
+      { w:580, h:130, r: 12,  d:'0.3s', pos:{ left:'-15%', top:'15%'    }, g:'rgba(70,89,117,0.14)'   },
+      { w:480, h:110, r:-15,  d:'0.5s', pos:{ right:'-14%',top:'62%'    }, g:'rgba(130,147,177,0.10)' },
+      { w:280, h:72,  r: -8,  d:'0.4s', pos:{ left:'-4%',  bottom:'6%'  }, g:'rgba(70,89,117,0.12)'   },
+      { w:180, h:52,  r: 20,  d:'0.6s', pos:{ right:'12%', top:'8%'     }, g:'rgba(130,147,177,0.09)' },
+      { w:140, h:40,  r:-25,  d:'0.7s', pos:{ left:'18%',  top:'4%'     }, g:'rgba(70,89,117,0.10)'   },
     ];
 
     function Background() {
@@ -530,12 +543,6 @@
        INTRO SCREEN
     ══════════════════════════════════════ */
     function IntroScreen({ onStart }) {
-      const gradientText = {
-        WebkitBackgroundClip: 'text',
-        WebkitTextFillColor:  'transparent',
-        backgroundClip:       'text',
-        display:              'inline',
-      };
       return (
         <div className="animate-fade-up text-center w-full" style={{ maxWidth:600 }}>
           <Logo />
@@ -560,7 +567,7 @@
             שאלון אבחון שיווקי חינמי
           </div>
 
-          {/* Gradient heading — HeroGeometric style */}
+          {/* Gradient heading */}
           <h1 style={{
             fontSize:'clamp(1.9rem, 5.5vw, 2.8rem)',
             fontWeight:800,
@@ -568,19 +575,9 @@
             margin:'0 0 20px',
             letterSpacing:'-0.02em',
           }}>
-            <span style={{
-              ...gradientText,
-              background:'linear-gradient(to bottom, #e0e1dd 40%, rgba(224,225,221,0.75))',
-            }}>
-              תוך 3 דקות תביני
-            </span>
+            <span className="grad-line1">תוך 3 דקות תביני</span>
             <br />
-            <span style={{
-              ...gradientText,
-              background:'linear-gradient(to left, #8293b1, rgba(224,225,221,0.90), #8293b1)',
-            }}>
-              למה השיווק שלך לא מביא לקוחות
-            </span>
+            <span className="grad-line2">למה השיווק שלך לא מביא לקוחות</span>
           </h1>
 
           <p style={{
@@ -1003,7 +1000,7 @@
           <div className="result-hero">
             <Logo small />
             <div style={{ marginTop:22, position:'relative', zIndex:1 }}>
-              <div className="hero-badge">סוג היזמית המרכזית שאת</div>
+              <div className="hero-badge">הפרופיל השיווקי שלך</div>
               <h1 style={{
                 color:'#e0e1dd',
                 fontSize:'clamp(2rem,6vw,3rem)',
