@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>שאלון אבחון שיווקי</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { rubik: ['Rubik', 'sans-serif'] },
+          colors: {
+            brand: {
+              dark:  '#162547',
+              mid:   '#465975',
+              light: '#8293b1',
+              cream: '#e0e1dd',
+            }
+          },
+          keyframes: {
+            fadeUp:   { from:{ opacity:'0', transform:'translateY(28px)' }, to:{ opacity:'1', transform:'translateY(0)' } },
+            fadeIn:   { from:{ opacity:'0' }, to:{ opacity:'1' } },
+            checkPop: { '0%':{ transform:'scale(0)' }, '65%':{ transform:'scale(1.2)' }, '100%':{ transform:'scale(1)' } },
+            spinR:    { to:{ transform:'rotate(360deg)' } },
+            barGrow:  { from:{ width:'0%' }, to:{ width:'var(--bar-w)' } },
+            pulseGlow:{ '0%,100%':{ opacity:.6 }, '50%':{ opacity:1 } },
+          },
+          animation: {
+            'fade-up':    'fadeUp 0.55s cubic-bezier(.16,1,.3,1) both',
+            'fade-in':    'fadeIn 0.5s ease both',
+            'check-pop':  'checkPop 0.5s cubic-bezier(.34,1.56,.64,1) both',
+            'spin-btn':   'spinR 0.8s linear infinite',
+            'bar-grow':   'barGrow 1s cubic-bezier(.4,0,.2,1) both',
+            'pulse-glow': 'pulseGlow 2.5s ease-in-out infinite',
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      font-family: 'Rubik', sans-serif;
+      margin: 0;
+      background: #162547;
+      -webkit-font-smoothing: antialiased;
+      letter-spacing: -0.01em;
+    }
+
+    /* ─── Floating shapes ─── */
+    @keyframes floatCircle {
+      0%   { transform:translateY(110vh); opacity:0; }
+      8%   { opacity:.07; }
+      90%  { opacity:.07; }
+      100% { transform:translateY(-10vh); opacity:0; }
+    }
+    @keyframes floatDiamond {
+      0%   { transform:translateY(110vh) rotate(45deg); opacity:0; }
+      8%   { opacity:.05; }
+      90%  { opacity:.05; }
+      100% { transform:translateY(-10vh) rotate(225deg); opacity:0; }
+    }
+    .fc { animation-name:floatCircle;  animation-timing-function:linear; animation-iteration-count:infinite; }
+    .fd { animation-name:floatDiamond; animation-timing-function:linear; animation-iteration-count:infinite; }
+
+    /* ─── Answer buttons ─── */
+    .ans-btn {
+      background: rgba(70,89,117,0.16);
+      border: 1.5px solid rgba(130,147,177,0.16);
+      border-radius: 14px;
+      padding: 17px 22px;
+      text-align: right;
+      color: rgba(224,225,221,0.82);
+      font-size: 1rem;
+      font-family: 'Rubik', sans-serif;
+      font-weight: 500;
+      cursor: pointer;
+      line-height: 1.65;
+      width: 100%;
+      transition: background .2s, border-color .2s, color .2s, transform .2s, box-shadow .2s;
+      display: block;
+      position: relative;
+    }
+    .ans-btn::before {
+      content: '';
+      position: absolute;
+      right: 18px; top: 50%; transform: translateY(-50%);
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(130,147,177,0.35);
+      transition: background .2s, border-color .2s;
+    }
+    .ans-btn:hover:not(:disabled) {
+      background: rgba(70,89,117,0.38);
+      border-color: rgba(130,147,177,0.50);
+      color: #e0e1dd;
+      transform: translateX(-5px);
+      box-shadow: 0 6px 24px rgba(22,37,71,0.35);
+    }
+    .ans-btn:hover:not(:disabled)::before {
+      border-color: #8293b1;
+    }
+    .ans-btn.chosen {
+      background: rgba(70,89,117,0.52);
+      border-color: #8293b1;
+      color: #e0e1dd;
+      transform: translateX(-5px);
+      box-shadow: 0 6px 24px rgba(22,37,71,0.4);
+    }
+    .ans-btn.chosen::before {
+      background: #8293b1;
+      border-color: #8293b1;
+    }
+    .ans-btn.dimmed { opacity:.22; pointer-events:none; }
+
+    /* ─── Result page ─── */
+    .result-page { background: #e0e1dd; min-height:100vh; direction:rtl; }
+
+    .result-hero {
+      background: linear-gradient(155deg, #162547 0%, #1e3260 55%, #465975 100%);
+      padding: 64px 20px 80px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .result-hero::before {
+      content:'';
+      position:absolute; inset:0;
+      background: radial-gradient(ellipse at 25% 10%, rgba(130,147,177,0.18) 0%, transparent 55%);
+      pointer-events:none;
+    }
+    .result-hero::after {
+      content:'';
+      position:absolute; inset:0;
+      background: radial-gradient(ellipse at 80% 90%, rgba(70,89,117,0.22) 0%, transparent 50%);
+      pointer-events:none;
+    }
+
+    .hero-badge {
+      display: inline-block;
+      background: rgba(130,147,177,0.16);
+      border: 1px solid rgba(130,147,177,0.28);
+      color: #b8c6d8;
+      font-size: .78rem;
+      font-weight: 700;
+      letter-spacing: .08em;
+      padding: 5px 16px;
+      border-radius: 99px;
+      margin-bottom: 20px;
+    }
+
+    .result-container {
+      max-width: 740px;
+      margin: 0 auto;
+      padding: 0 16px 80px;
+    }
+
+    .result-card {
+      background: rgba(255,255,255,0.92);
+      border-radius: 22px;
+      box-shadow: 0 2px 24px rgba(22,37,71,0.09), 0 0 0 1px rgba(22,37,71,0.05);
+      padding: 34px;
+      margin-bottom: 16px;
+    }
+
+    .cta-box {
+      background: linear-gradient(145deg, #162547 0%, #2a4060 50%, #465975 100%);
+      border-radius: 22px;
+      padding: 40px 34px;
+      text-align: center;
+      color: #e0e1dd;
+      margin-bottom: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-box::before {
+      content:'';
+      position:absolute;
+      top:-60px; left:-60px;
+      width:280px; height:280px;
+      background: radial-gradient(circle, rgba(130,147,177,0.14) 0%, transparent 70%);
+      pointer-events:none;
+    }
+    .cta-box::after {
+      content:'';
+      position:absolute;
+      bottom:-40px; right:-40px;
+      width:200px; height:200px;
+      background: radial-gradient(circle, rgba(70,89,117,0.20) 0%, transparent 70%);
+      pointer-events:none;
+    }
+
+    .cta-btn {
+      display: inline-block;
+      background: #e0e1dd;
+      color: #162547;
+      font-weight: 800;
+      font-size: 1.08rem;
+      padding: 17px 40px;
+      border-radius: 50px;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      font-family: 'Rubik', sans-serif;
+      transition: transform .2s, box-shadow .2s, background .2s;
+      box-shadow: 0 4px 24px rgba(224,225,221,0.28);
+      position: relative;
+      z-index: 1;
+    }
+    .cta-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 36px rgba(224,225,221,0.38);
+      background: #fff;
+    }
+
+    .score-bar-track {
+      background: rgba(22,37,71,0.08);
+      border-radius: 99px;
+      height: 9px;
+      overflow: hidden;
+      flex: 1;
+    }
+    .score-bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      animation: barGrow 1s cubic-bezier(.4,0,.2,1) both;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 580px) {
+      .grid-2 { grid-template-columns: 1fr; }
+      .result-card { padding: 24px 20px; }
+      .cta-box { padding: 30px 20px; }
+    }
+
+    .strength-item, .challenge-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(22,37,71,0.07);
+      font-size: .97rem;
+      line-height: 1.65;
+      color: #2d3d56;
+      font-weight: 500;
+    }
+    .strength-item:last-child, .challenge-item:last-child { border-bottom: none; }
+
+    .section-tag {
+      display: inline-block;
+      font-size: .73rem;
+      font-weight: 700;
+      letter-spacing: .07em;
+      padding: 4px 14px;
+      border-radius: 99px;
+      margin-bottom: 14px;
+    }
+
+    .divider-line {
+      width: 44px;
+      height: 3px;
+      background: linear-gradient(90deg, #8293b1, #465975);
+      border-radius: 99px;
+      margin: 10px 0 20px;
+    }
+
+    /* Form autofill */
+    input:-webkit-autofill, input:-webkit-autofill:focus {
+      -webkit-box-shadow: 0 0 0 1000px rgba(22,37,71,.96) inset !important;
+      -webkit-text-fill-color: #e0e1dd !important;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useCallback, useEffect } = React;
+
+    const WEBHOOK = 'https://hook.eu1.make.com/22713122q3hk52f8lbvhrvqcgrbqnc9p';
+
+    const QUESTIONS = [
+      { q: "כשיש לך רעיון לתוכן, מה קורה בפועל?", a: [
+        { t: "מנסה לשפר אותו כדי שייצא הכי טוב שיש לפני שאני מעלה", type:"P" },
+        { t: "אומרת שאעשה את זה אבל לרוב לא עושה",                  type:"B" },
+        { t: "מצלמת לפי מה שראיתי שעובד לאחרים",                    type:"M" },
+        { t: "לומדת עוד ומדייקת לפני שמוציאה",                      type:"T" },
+      ]},
+      { q: "איך נראה עמוד האינסטגרם שלך היום?", a: [
+        { t: "מעט תוכן, לא באמת משקף את היכולות שלי",               type:"B" },
+        { t: "הרבה סוגים שונים של תוכן, אין קו ברור",               type:"M" },
+        { t: "נראה טוב אבל נראה כמו אחרות בתחום שלי",               type:"T" },
+        { t: "יחסית מושקע אבל אני מעלה מעט כי לוקח לי זמן",         type:"P" },
+      ]},
+      { q: "כמה זמן לוקח לך להעלות סרטון?", a: [
+        { t: "לא הרבה זמן, אני פשוט מעלה",                           type:"M" },
+        { t: "לפעמים שעות על סרטון אחד",                             type:"P" },
+        { t: "אני לא באמת מגיעה לשלב הזה",                          type:"B" },
+        { t: "לוקח זמן כי אני עוד מנסה ליישם דברים שלמדתי",         type:"T" },
+      ]},
+      { q: "מה הכי מאפיין את התוכן שלך?", a: [
+        { t: "מבוסס על טרנדים או השראות שראיתי",                     type:"M" },
+        { t: "כמעט ואין תוכן",                                        type:"B" },
+        { t: "נותן ערך אבל לא מניב פניות",                           type:"T" },
+        { t: "מושקע מאוד אבל מתקשה לשחרר מהר",                      type:"P" },
+      ]},
+      { q: "מה קורה כשסרטון לא מביא תוצאה?", a: [
+        { t: "אני מנסה סגנון אחר בפעם הבאה",                         type:"M" },
+        { t: "זה מוריד לי את החשק להעלות שוב",                       type:"B" },
+        { t: "מנסה שוב להתמקצע וללמוד עוד אבל לא בטוחה מה לשנות",   type:"T" },
+        { t: "מתבאסת ומשווה את עצמי לאחרים",                         type:"P" },
+      ]},
+      { q: "איך את מקבלת החלטות על תוכן?", a: [
+        { t: "לפי מה שעובד לאחרים",                                   type:"M" },
+        { t: "לפי מה שמרגיש לי נכון באותו רגע",                      type:"P" },
+        { t: "לפי מה ששמעתי שעובד",                                   type:"T" },
+        { t: "אין לי תהליך קבוע",                                     type:"B" },
+      ]},
+      { q: "מה הכי מתסכל אותך בתוכן?", a: [
+        { t: "שאני מעלה אבל אין לי מושג למה ומה יעבוד",              type:"M" },
+        { t: "מתקשה בלהתמיד",                                         type:"B" },
+        { t: "תמיד לומדת ומשקיעה… אבל לא באמת מתקדמת",              type:"T" },
+        { t: "לוקח לי הרבה זמן לשחרר ולהעלות תוכן",                  type:"P" },
+      ]},
+      { q: "איך נראה תהליך העבודה שלך על העסק?", a: [
+        { t: "הרבה ניסוי וטעייה תוך כדי תנועה",                      type:"M" },
+        { t: "הרבה מחשבות ורעיונות שלא יוצאים לפועל",                type:"P" },
+        { t: "הרבה למידה והתעסקות בשיווק אבל מעט ביצוע בפועל",       type:"T" },
+        { t: "אני לא באמת בתוך זה ביום יום",                         type:"B" },
+      ]},
+      { q: "מה המשפט שהכי קרוב למציאות שלך?", a: [
+        { t: "אני עושה מה שצריך אבל בלי תהליך ברור",                 type:"M" },
+        { t: "אני יודעת שאני טובה אבל זה לא משתקף בשיווק",           type:"B" },
+        { t: "אני לומדת ויודעת המון אבל לא מקבלת תוצאות",            type:"T" },
+        { t: "קשה לי להעלות תכנים שלא מרגישים לי מספיק טובים",       type:"P" },
+      ]},
+      { q: "מאיפה מגיעים הלקוחות שלך?", a: [
+        { t: "רק מפה לאוזן",                                           type:"B" },
+        { t: "מהרשתות החברתיות, אבל לא בצורה יציבה",                  type:"M" },
+        { t: "ניסיתי כמה שיטות, אבל לא התמדתי באף אחת מהן",          type:"T" },
+        { t: "גם מפה לאוזן וגם מהרשתות",                              type:"P" },
+      ]},
+      { q: "כמה זמן העסק שלך פעיל?", a: [
+        { t: "פחות מחצי שנה",    type:"X" },
+        { t: "בין חצי שנה לשנה", type:"X" },
+        { t: "שנה – שנתיים",     type:"X" },
+        { t: "מעל שנתיים",       type:"X" },
+      ]},
+    ];
+
+    const TOTAL_SCORED = 10;
+
+    const PROFILES = {
+      P: {
+        label: "הפרפקציוניסטית",
+        color: "#7c3aed",
+        colorLight: "#ede9fe",
+        desc: "לא סתם את מתעכבת עם דברים, את פשוט לא מוכנה להוציא משהו שלא עומד בסטנדרט שלך. יש לך עין טובה, יש לך טעם, ואת יודעת לזהות מה נראה מקצועי ומה לא… הבעיה? שאת השופטת הכי גדולה של עצמך וזה בדיוק מה שתוקע אותך מלראות תוצאות.\n\nהרבה מהרעיונות שלך עוברים סינון קפדני ומחשבה ממושכת עד הפרטים הכי קטנים ונחשי מה? בסוף את לא מוציאה לפועל שום דבר.\n\nומה שקורה זה שהתוכן שלך לא מקבל הזדמנות להיות במבחן התוצאה.\n\nשורה תחתונה:\nכל יום שאת לא משווקת את מפסידה כסף!\nאת לא צריכה להיות יותר טובה. את צריכה להסכים לשחרר תוכן גם כשזה לא מושלם.",
+        strengths: [
+          "עין טובה לפרטים ולאיכות תוכן",
+          "כשמשהו יוצא — הוא מרשים ומקצועי",
+          "סטנדרטים גבוהים שמייצרים אמון עמוק",
+        ],
+        challenges: [
+          "לא מוציאה תוכן לאוויר בתדירות מספקת",
+          "רעיונות נשארים בטיוטה ולא נבחנים",
+          "אין דאטה לשיפור כי אין מה לנתח",
+        ],
+        scaleStruggle: "כדי לעשות סקייל צריך דאטה, ודאטה מגיע רק מתוכן שיצא לאוויר. הפרפקציוניזם מונע ממך לאסוף את המידע שיגיד לך מה עובד — ובלי זה, לא ניתן להכפיל את מה שעובד.",
+      },
+      T: {
+        label: "התלמידה הנצחית",
+        color: "#059669",
+        colorLight: "#d1fae5",
+        desc: "את כנראה הרבה יותר מקצועית ומוכשרת מהקולגות שלך ואת תמיד בלמידה, עוד הכשרה עוד קורס ועוד השתלמות כדי להיות הכי טובה בתחום. יש לך אשליית התקדמות אבל זה לא מה שקורה לך בפועל בחשבון בנק. הלקוחות שלך לא מכירים אותך ואת נעלמת בין כל המתחרים בשוק.\n\nיש לך הרבה רעיונות שנשארים בגדר רעיונות ומחכים לזמן הנכון לצאת.\nובנתיים את נשארת במקום הבטוח שלך ובאיזור הנוחות — הלמידה.\n\nכל עוד לא תתחילי לעבוד על השיווק שלך הקולגות שפחות טובות ממך יקחו לך את הקהל הפוטנציאלי.\n\nובשיווק — למידה לא מייצרת תוצאות, פעולה כן.",
+        strengths: [
+          "ידע מקצועי עמוק יותר מרוב המתחרים",
+          "מחויבות גבוהה לצמיחה ולמקצועיות",
+          "אמינות ורמה גבוהה בעיני הסביבה",
+        ],
+        challenges: [
+          "אין מנגנון שיווקי ומכירתי פעיל",
+          "הקהל הפוטנציאלי לא מכיר אותך",
+          "הידע לא הופך ללקוחות ולהכנסות",
+        ],
+        scaleStruggle: "הידע לבדו לא מייצר הכנסות — מנגנון שיווקי כן. כל עוד אין לך מערכת שמביאה לקוחות בצורה עקבית, הצמיחה תלויה במקרה ולא בשיטה. סקייל זה מתמטיקה, לא רק כישרון.",
+      },
+      M: {
+        label: "המאלתרת",
+        color: "#ea580c",
+        colorLight: "#ffedd5",
+        desc: "אם יצאת מאלתרת, את כנראה בן אדם של עשייה. את מעלה, מנסה, זורמת, לא מפחדת להיחשף וזה יתרון גדול. אבל יחד עם זה, אין לך באמת כיוון ברור. כל פעם מנסה משהו אחר, רעיון אחר, סגנון אחר.\n\nלפעמים זה עובד, לפעמים פחות, אבל אין לך דרך עקבית שתוכלי לדעת מה באמת מביא לך תוצאות, אין לך נתונים מוגדרים להסתכל עליהם.\n\nזה נותן תחושת אשליה של תנועה כשבפועל את נשארת בדיוק באותו מקום רק עם פחות אנרגיה.\n\nשורה תחתונה:\nאת לא צריכה לעשות יותר — את צריכה להתפקס על כיוון אחד ברור ובצורה מדויקת.",
+        strengths: [
+          "אנרגיה ורצון עשייה גבוהים ואמיתיים",
+          "לא מפחדת להיחשף ולנסות דברים חדשים",
+          "גמישות ויכולת הסתגלות לשינויים",
+        ],
+        challenges: [
+          "חוסר כיוון ואסטרטגיה ברורה בתוכן",
+          "אין נתונים עקביים לניתוח ושיפור",
+          "תחושת עשייה רבה, תוצאות מועטות",
+        ],
+        scaleStruggle: "סקייל זה חזרה על מה שעובד. כשכל פעם מנסים כיוון אחר, אי אפשר לזהות את הנוסחה המנצחת ואי אפשר להכפיל אותה. צריך להתמקד בדבר אחד, לאסוף ממנו נתונים, ואז לבנות עליו.",
+      },
+      B: {
+        label: "הבלתי נראית",
+        color: "#2563eb",
+        colorLight: "#dbeafe",
+        desc: "אם יצאת בלתי נראית, זה כנראה כי אף אחד עוד לא נחשף אליך.\n\nאת מקצוענית במה שאת עושה אבל הקהל לא יודע שאת הפתרון שהוא צריך. קשה לך להוציא רעיונות לפועל, לפעמים זה מחוסר זמן, חוסר חשק או פשוט כי אין לך כוח להתחיל.\n\nאת מרגישה מותשת מכל פעולה שיווקית, אין לך עקביות מה שמשאיר אותך מאחורי הקלעים.\n\nובשיווק, אם לא רואים אותך — כנראה שגם לא יבחרו בך.\n\nבסופו של דבר כל אלו מובילים לתוצאה אחת — אנשים לא באמת מכירים אותך.",
+        strengths: [
+          "מקצועית ואמינה בעיני לקוחות קיימים",
+          "יכולת אמיתית לייצר תוצאות ללקוחות",
+          "המלצות חמות ואמיתיות מלקוחות מרוצים",
+        ],
+        challenges: [
+          "חוסר נוכחות דיגיטלית קבועה ועקבית",
+          "הקהל הרחב לא יודע שאת קיימת",
+          "תלות בלעדית בפה לאוזן שלא ניתן לשלוט בו",
+        ],
+        scaleStruggle: "פה לאוזן הוא ערוץ שאי אפשר לדרוש ממנו, לתזמן אותו, או להכפיל אותו. כדי לעשות סקייל צריך ערוץ דיגיטלי שמביא לקוחות חדשים באופן צפוי ויציב — בלי זה, הצמיחה תלויה במזל.",
+      },
+    };
+
+    const TYPE_ORDER = ['M', 'B', 'T', 'P'];
+
+    function calcResult(scores) {
+      const winner = TYPE_ORDER.reduce((a, b) => scores[a] >= scores[b] ? a : b);
+      return { key: winner, ...PROFILES[winner] };
+    }
+
+    /* ─── Background floating shapes ─── */
+    const SHAPES = [
+      { w:80,  left:'6%',  delay:0,  dur:22, t:'c' },
+      { w:40,  left:'20%', delay:5,  dur:26, t:'d' },
+      { w:96,  left:'36%', delay:8,  dur:30, t:'c' },
+      { w:30,  left:'54%', delay:1,  dur:18, t:'d' },
+      { w:60,  left:'70%', delay:11, dur:24, t:'c' },
+      { w:48,  left:'85%', delay:4,  dur:32, t:'d' },
+      { w:24,  left:'2%',  delay:14, dur:17, t:'c' },
+      { w:76,  left:'46%', delay:17, dur:27, t:'d' },
+      { w:38,  left:'91%', delay:2,  dur:20, t:'c' },
+      { w:52,  left:'29%', delay:19, dur:29, t:'d' },
+    ];
+
+    function Background() {
+      return (
+        <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+          {SHAPES.map((s, i) => (
+            <div key={i} className={s.t === 'c' ? 'fc' : 'fd'} style={{
+              position:'absolute', width:s.w, height:s.w,
+              left:s.left, bottom:-(s.w + 10),
+              borderRadius: s.t === 'c' ? '50%' : '0',
+              border: s.t === 'c'
+                ? '1.5px solid rgba(130,147,177,0.18)'
+                : '1.5px solid rgba(70,89,117,0.14)',
+              animationDuration:`${s.dur}s`,
+              animationDelay:`${s.delay}s`,
+            }} />
+          ))}
+        </div>
+      );
+    }
+
+    /* ─── Logo ─── */
+    function Logo({ small }) {
+      const size = small ? 64 : 92;
+      return (
+        <div style={{ display:'flex', justifyContent:'center', marginBottom: small ? 0 : 32 }}>
+          <div style={{
+            width:size, height:size, borderRadius:'50%', overflow:'hidden',
+            border:'2px solid rgba(130,147,177,0.5)',
+            background: 'linear-gradient(145deg, #1e3260, #465975)',
+            display:'flex', alignItems:'center', justifyContent:'center',
+            boxShadow:'0 0 0 6px rgba(130,147,177,0.10), 0 0 40px rgba(70,89,117,0.30)',
+          }}>
+            <img src="logo.png" alt="לוגו"
+              style={{ width:'100%', height:'100%', objectFit:'cover' }}
+              onError={e => {
+                const sp = document.createElement('span');
+                sp.textContent = '✨';
+                sp.style.fontSize = small ? '1.5rem' : '2.2rem';
+                e.target.replaceWith(sp);
+              }} />
+          </div>
+        </div>
+      );
+    }
+
+    /* ══════════════════════════════════════
+       INTRO SCREEN
+    ══════════════════════════════════════ */
+    function IntroScreen({ onStart }) {
+      return (
+        <div className="animate-fade-up text-center w-full" style={{ maxWidth:580 }}>
+          <Logo />
+
+          {/* Badge */}
+          <div style={{
+            display:'inline-block',
+            background:'rgba(130,147,177,0.12)',
+            border:'1px solid rgba(130,147,177,0.22)',
+            color:'#a0b0c8',
+            fontSize:'.76rem',
+            fontWeight:700,
+            letterSpacing:'.08em',
+            padding:'5px 18px',
+            borderRadius:'99px',
+            marginBottom:22,
+          }}>
+            שאלון אבחון חינמי
+          </div>
+
+          <h1 style={{
+            color:'#e0e1dd',
+            fontSize:'clamp(1.7rem, 5vw, 2.2rem)',
+            fontWeight:800,
+            lineHeight:1.35,
+            margin:'0 0 18px',
+            letterSpacing:'-0.01em',
+          }}>
+            תוך 3 דקות תביני<br />
+            למה השיווק שלך לא מביא לקוחות
+          </h1>
+
+          <p style={{
+            color:'#8293b1',
+            fontSize:'1.05rem',
+            lineHeight:1.8,
+            marginBottom:36,
+            fontWeight:400,
+          }}>
+            שאלון אבחון קצר — בסיומו תקבלי אבחון אישי<br />
+            ודרך פעולה ברורה למצב שלך עכשיו
+          </p>
+
+          {/* Tags row */}
+          <div style={{ display:'flex', flexWrap:'wrap', justifyContent:'center', gap:10, marginBottom:40 }}>
+            {['⏱ 3 דקות בלבד', '11 שאלות', 'אבחון אישי מיידי'].map(tag => (
+              <span key={tag} style={{
+                background:'rgba(70,89,117,0.22)',
+                border:'1.5px solid rgba(130,147,177,0.20)',
+                color:'#8293b1',
+                padding:'7px 18px',
+                borderRadius:'99px',
+                fontSize:'.84rem',
+                fontWeight:600,
+              }}>
+                {tag}
+              </span>
+            ))}
+          </div>
+
+          <button onClick={onStart} style={{
+            background: 'linear-gradient(145deg, #465975, #2a4060)',
+            border: '1.5px solid rgba(130,147,177,0.30)',
+            color: '#e0e1dd',
+            fontWeight:800,
+            fontSize:'1.08rem',
+            padding:'18px 48px',
+            borderRadius:'50px',
+            cursor:'pointer',
+            fontFamily:"'Rubik', sans-serif",
+            letterSpacing:'0.01em',
+            transition:'all .22s',
+            boxShadow:'0 6px 28px rgba(22,37,71,0.45), 0 0 0 0 rgba(130,147,177,0)',
+          }}
+            onMouseEnter={e => {
+              e.currentTarget.style.transform = 'translateY(-3px)';
+              e.currentTarget.style.boxShadow = '0 12px 40px rgba(22,37,71,0.55), 0 0 0 4px rgba(130,147,177,0.12)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.transform = '';
+              e.currentTarget.style.boxShadow = '0 6px 28px rgba(22,37,71,0.45)';
+            }}>
+            בואי נתחיל ←
+          </button>
+
+          <p style={{ color:'rgba(130,147,177,0.5)', fontSize:'.8rem', marginTop:18, fontWeight:400 }}>
+            חינמי לחלוטין · ללא התחייבות
+          </p>
+        </div>
+      );
+    }
+
+    /* ══════════════════════════════════════
+       QUIZ SCREEN
+    ══════════════════════════════════════ */
+    function QuizScreen({ onComplete }) {
+      const [qIdx,      setQIdx]      = useState(0);
+      const [scores,    setScores]    = useState({ M:0, B:0, T:0, P:0 });
+      const [chosenIdx, setChosenIdx] = useState(null);
+
+      const total = QUESTIONS.length;
+      const pct   = Math.round(((qIdx + 1) / total) * 100);
+
+      const pick = useCallback((type, idx) => {
+        if (chosenIdx !== null) return;
+        setChosenIdx(idx);
+        const next = type !== 'X'
+          ? { ...scores, [type]: scores[type] + 1 }
+          : { ...scores };
+        setScores(next);
+        setTimeout(() => {
+          const nextIdx = qIdx + 1;
+          if (nextIdx < total) { setQIdx(nextIdx); setChosenIdx(null); }
+          else                 { onComplete(next); }
+        }, 480);
+      }, [chosenIdx, scores, qIdx, total, onComplete]);
+
+      return (
+        <div className="animate-fade-up w-full" style={{ maxWidth:640 }}>
+
+          {/* Progress */}
+          <div style={{ marginBottom:28 }}>
+            <div style={{
+              display:'flex', justifyContent:'space-between',
+              fontSize:'.82rem', fontWeight:600,
+              color:'rgba(130,147,177,0.7)', marginBottom:10,
+            }}>
+              <span>שאלה {qIdx + 1} מתוך {total}</span>
+              <span style={{ color:'#8293b1' }}>{pct}%</span>
+            </div>
+            <div style={{
+              height:4, background:'rgba(255,255,255,0.07)',
+              borderRadius:'99px', overflow:'hidden',
+            }}>
+              <div style={{
+                width:`${pct}%`, height:'100%',
+                background:'linear-gradient(90deg, #465975, #8293b1)',
+                borderRadius:'99px',
+                transition:'width 0.5s cubic-bezier(.4,0,.2,1)',
+              }} />
+            </div>
+          </div>
+
+          {/* Question card */}
+          <div style={{
+            background:'rgba(70,89,117,0.18)',
+            border:'1.5px solid rgba(130,147,177,0.14)',
+            borderRadius:22,
+            padding:'36px 32px',
+            backdropFilter:'blur(20px)',
+            boxShadow:'0 20px 60px rgba(22,37,71,0.40)',
+          }}>
+            <p style={{
+              fontSize:'1.22rem',
+              fontWeight:700,
+              lineHeight:1.65,
+              color:'#e0e1dd',
+              marginBottom:28,
+              marginTop:0,
+            }}>
+              {QUESTIONS[qIdx].q}
+            </p>
+            <div style={{ display:'flex', flexDirection:'column', gap:11 }}>
+              {QUESTIONS[qIdx].a.map((ans, i) => (
+                <button key={`${qIdx}-${i}`}
+                  disabled={chosenIdx !== null}
+                  onClick={() => pick(ans.type, i)}
+                  className={['ans-btn', chosenIdx===i?'chosen':'', chosenIdx!==null&&chosenIdx!==i?'dimmed':''].join(' ')}>
+                  {ans.t}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ══════════════════════════════════════
+       FORM SCREEN
+    ══════════════════════════════════════ */
+    function Field({ label, id, type='text', placeholder, value, onChange, error }) {
+      return (
+        <div style={{ marginBottom:20 }}>
+          <label htmlFor={id} style={{
+            display:'block', fontSize:'.84rem',
+            fontWeight:700, color:'#8293b1', marginBottom:8,
+            letterSpacing:'.03em',
+          }}>
+            {label}
+          </label>
+          <input id={id} type={type} value={value} onChange={onChange}
+            placeholder={placeholder} autoComplete="off" dir="rtl"
+            style={{
+              width:'100%', padding:'14px 18px',
+              borderRadius:12,
+              fontSize:'1rem', fontFamily:"'Rubik', sans-serif", fontWeight:500,
+              color:'#e0e1dd',
+              background:'rgba(70,89,117,0.20)',
+              border: error ? '1.5px solid rgba(248,113,113,0.6)' : '1.5px solid rgba(130,147,177,0.20)',
+              outline:'none',
+              transition:'all .2s',
+            }}
+            onFocus={e => {
+              e.target.style.background = 'rgba(70,89,117,0.32)';
+              e.target.style.borderColor = 'rgba(130,147,177,0.55)';
+              e.target.style.boxShadow = '0 0 0 3px rgba(130,147,177,0.10)';
+            }}
+            onBlur={e => {
+              e.target.style.background = 'rgba(70,89,117,0.20)';
+              e.target.style.borderColor = error ? 'rgba(248,113,113,0.6)' : 'rgba(130,147,177,0.20)';
+              e.target.style.boxShadow = '';
+            }}
+          />
+          {error && (
+            <p style={{ marginTop:6, color:'rgba(248,113,113,0.9)', fontSize:'.82rem', fontWeight:600 }}>
+              {error}
+            </p>
+          )}
+        </div>
+      );
+    }
+
+    function FormScreen({ profile, onSuccess }) {
+      const [form,      setForm]      = useState({ full_name:'', email:'' });
+      const [errors,    setErrors]    = useState({});
+      const [loading,   setLoading]   = useState(false);
+      const [serverErr, setServerErr] = useState('');
+
+      const set = k => e => setForm(p => ({ ...p, [k]: e.target.value }));
+
+      function validate() {
+        const e = {};
+        if (!form.full_name.trim()) e.full_name = 'שדה חובה';
+        if (!form.email.trim())     e.email     = 'שדה חובה';
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'כתובת אימייל לא תקינה';
+        return e;
+      }
+
+      async function handleSubmit(ev) {
+        ev.preventDefault();
+        setServerErr('');
+        const errs = validate();
+        if (Object.keys(errs).length) { setErrors(errs); return; }
+        setErrors({});
+        setLoading(true);
+        try {
+          const res = await fetch(WEBHOOK, {
+            method:'POST',
+            headers:{ 'Content-Type':'application/json' },
+            body: JSON.stringify({
+              full_name:             form.full_name.trim(),
+              email:                 form.email.trim(),
+              diagnosis_title:       profile.label,
+              diagnosis_description: profile.desc,
+            }),
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          onSuccess(form.full_name.trim());
+        } catch (err) {
+          console.error(err);
+          setServerErr('שגיאה בשליחה. אנא נסי שנית.');
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      return (
+        <div className="animate-fade-up w-full" style={{ maxWidth:500 }}>
+          <Logo />
+          <div style={{
+            background:'rgba(70,89,117,0.18)',
+            border:'1.5px solid rgba(130,147,177,0.14)',
+            borderRadius:24,
+            padding:'44px 36px',
+            backdropFilter:'blur(24px)',
+            boxShadow:'0 24px 64px rgba(22,37,71,0.45)',
+          }}>
+            <div style={{ textAlign:'center', marginBottom:32 }}>
+              <div style={{
+                width:56, height:56, borderRadius:'50%',
+                background:'rgba(130,147,177,0.14)',
+                border:'1.5px solid rgba(130,147,177,0.22)',
+                display:'flex', alignItems:'center', justifyContent:'center',
+                margin:'0 auto 16px',
+                fontSize:'1.5rem',
+              }}>
+                🎯
+              </div>
+              <h2 style={{
+                color:'#e0e1dd', fontSize:'1.65rem',
+                fontWeight:800, margin:'0 0 10px',
+                letterSpacing:'-0.01em',
+              }}>
+                כמעט שם!
+              </h2>
+              <p style={{ color:'#8293b1', fontSize:'.97rem', lineHeight:1.7, margin:0, fontWeight:400 }}>
+                הכניסי את הפרטים שלך<br />האבחון האישי שלך יוצג מיד
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmit} noValidate>
+              <Field label="שם מלא" id="full_name" placeholder="ישראלה ישראלי"
+                     value={form.full_name} onChange={set('full_name')} error={errors.full_name} />
+              <Field label="כתובת אימייל" id="email" type="email" placeholder="you@example.com"
+                     value={form.email} onChange={set('email')} error={errors.email} />
+
+              {serverErr && (
+                <div style={{
+                  marginBottom:16, padding:'12px 18px', borderRadius:12,
+                  fontSize:'.88rem', fontWeight:600,
+                  background:'rgba(248,113,113,0.12)',
+                  border:'1px solid rgba(248,113,113,0.28)',
+                  color:'rgba(248,113,113,0.9)',
+                }}>
+                  {serverErr}
+                </div>
+              )}
+
+              <button type="submit" disabled={loading} style={{
+                width:'100%', marginTop:4,
+                padding:'17px 24px',
+                borderRadius:'50px',
+                fontWeight:800, fontSize:'1.05rem',
+                color:'#e0e1dd', fontFamily:"'Rubik', sans-serif",
+                background: loading ? 'rgba(70,89,117,0.35)' : 'linear-gradient(145deg, #465975, #2a4060)',
+                border:'1.5px solid rgba(130,147,177,0.25)',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                display:'flex', alignItems:'center', justifyContent:'center', gap:10,
+                transition:'all .22s',
+                boxShadow: loading ? 'none' : '0 6px 24px rgba(22,37,71,0.40)',
+                opacity: loading ? 0.7 : 1,
+              }}>
+                {loading ? (
+                  <>
+                    <svg style={{ width:20, height:20, animation:'spinR 0.8s linear infinite' }}
+                      viewBox="0 0 24 24" fill="none">
+                      <circle style={{ opacity:.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path style={{ opacity:.8 }} fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    </svg>
+                    שולח...
+                  </>
+                ) : 'הצגי לי את האבחון ←'}
+              </button>
+
+              <p style={{
+                textAlign:'center', fontSize:'.78rem',
+                color:'rgba(130,147,177,0.40)', marginTop:16, fontWeight:400,
+              }}>
+                לא נשלח ספאם · הפרטים שלך מאובטחים
+              </p>
+            </form>
+          </div>
+        </div>
+      );
+    }
+
+    /* ══════════════════════════════════════
+       RESULT SCREEN
+    ══════════════════════════════════════ */
+    function CTABox() {
+      return (
+        <div className="cta-box">
+          <div style={{ position:'relative', zIndex:1 }}>
+            <div style={{
+              display:'inline-block',
+              background:'rgba(224,225,221,0.12)',
+              border:'1px solid rgba(224,225,221,0.20)',
+              color:'rgba(224,225,221,0.70)',
+              fontSize:'.76rem', fontWeight:700, letterSpacing:'.07em',
+              padding:'4px 16px', borderRadius:'99px', marginBottom:20,
+            }}>
+              הצעד הבא שלך
+            </div>
+            <p style={{ fontSize:'1.05rem', lineHeight:1.8, marginBottom:26, fontWeight:500, color:'rgba(224,225,221,0.90)' }}>
+              רוצה להבין איך השינוי יכול להתאים בעסק שלך?<br />
+              הטמעה של הידע הזה יכולה לקחת אותך לשם<br />
+              בהרבה פחות עבודה, מאמץ ותסכול.
+            </p>
+            <p style={{ fontSize:'.97rem', fontWeight:700, color:'#e0e1dd', marginBottom:28 }}>
+              כאן תוכלי לקבל פגישת אבחון של 90 דק׳ ללא עלות.
+            </p>
+            <a href="#" className="cta-btn">
+              כן! אני רוצה להגיע לרמה הבאה שלי ←
+            </a>
+          </div>
+        </div>
+      );
+    }
+
+    function ScoreBars({ scores, winnerKey }) {
+      return (
+        <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+          {TYPE_ORDER.map(k => {
+            const pct      = Math.round((scores[k] / TOTAL_SCORED) * 100);
+            const prof     = PROFILES[k];
+            const isWinner = k === winnerKey;
+            return (
+              <div key={k}>
+                <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:7 }}>
+                  <span style={{
+                    fontSize: isWinner ? '1rem' : '.88rem',
+                    fontWeight: isWinner ? 800 : 500,
+                    color: isWinner ? '#162547' : '#6b7280',
+                    minWidth:148,
+                  }}>
+                    {prof.label} {isWinner && '⭐'}
+                  </span>
+                  <span style={{
+                    fontSize:'.85rem',
+                    color: isWinner ? '#465975' : '#9ca3af',
+                    fontWeight:700,
+                  }}>
+                    {pct}%
+                  </span>
+                </div>
+                <div className="score-bar-track">
+                  <div className="score-bar-fill" style={{
+                    '--bar-w': `${pct}%`,
+                    width:`${pct}%`,
+                    background: isWinner
+                      ? 'linear-gradient(90deg, #465975, #162547)'
+                      : '#c5cdd9',
+                    opacity: isWinner ? 1 : 0.55,
+                  }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    function ResultScreen({ profile, scores, userName }) {
+      useEffect(() => {
+        document.body.style.background = '#e0e1dd';
+        window.scrollTo({ top:0, behavior:'instant' });
+        return () => { document.body.style.background = ''; };
+      }, []);
+
+      const descParagraphs = profile.desc.split('\n\n');
+
+      return (
+        <div className="result-page animate-fade-in">
+
+          {/* ── Hero ── */}
+          <div className="result-hero">
+            <Logo small />
+            <div style={{ marginTop:22, position:'relative', zIndex:1 }}>
+              <div className="hero-badge">סוג היזמית המרכזית שאת</div>
+              <h1 style={{
+                color:'#e0e1dd',
+                fontSize:'clamp(2rem,6vw,3rem)',
+                fontWeight:800,
+                margin:'0 0 16px',
+                lineHeight:1.2,
+                letterSpacing:'-0.02em',
+              }}>
+                {profile.label}
+              </h1>
+              <div style={{
+                width:52, height:3,
+                background:'linear-gradient(90deg, rgba(130,147,177,0.5), rgba(224,225,221,0.3))',
+                borderRadius:'99px',
+                margin:'0 auto 20px',
+              }} />
+              <p style={{
+                color:'rgba(224,225,221,0.72)',
+                fontSize:'1rem', lineHeight:1.75,
+                maxWidth:520, margin:'0 auto',
+                fontWeight:400,
+              }}>
+                הנה הדרך המומלצת עבורך להכפיל את הרווחים בעסק וגם ליהנות מהעשייה שלך
+              </p>
+            </div>
+          </div>
+
+          <div className="result-container">
+
+            {/* Top CTA */}
+            <div style={{ marginTop:'-32px' }}>
+              <CTABox />
+            </div>
+
+            {/* Score card */}
+            <div className="result-card">
+              <span className="section-tag"
+                style={{ background: profile.colorLight, color: profile.color }}>
+                התוצאות שלך
+              </span>
+              <h2 style={{
+                fontSize:'1.28rem', fontWeight:800,
+                color:'#162547', marginBottom:24, marginTop:4,
+              }}>
+                הנה האבחון שלך
+              </h2>
+              <ScoreBars scores={scores} winnerKey={profile.key} />
+            </div>
+
+            {/* Diagnosis */}
+            <div className="result-card">
+              <span className="section-tag"
+                style={{ background: profile.colorLight, color: profile.color }}>
+                האבחון המלא
+              </span>
+              <h2 style={{
+                fontSize:'1.22rem', fontWeight:800,
+                color:'#162547', marginBottom:6, marginTop:4,
+              }}>
+                {profile.label} — מה זה אומר עליך?
+              </h2>
+              <div className="divider-line" style={{ margin:'0 0 20px' }} />
+              {descParagraphs.map((p, i) => (
+                <p key={i} style={{
+                  color:'#2d3d56',
+                  lineHeight:1.85,
+                  marginBottom: i < descParagraphs.length - 1 ? 18 : 0,
+                  fontSize:'.98rem',
+                  fontWeight:400,
+                }}>
+                  {p}
+                </p>
+              ))}
+            </div>
+
+            {/* Strengths & Challenges */}
+            <div className="grid-2">
+              <div className="result-card" style={{ marginBottom:0 }}>
+                <span className="section-tag" style={{ background:'#d1fae5', color:'#065f46' }}>
+                  החוזקות שלך
+                </span>
+                <div style={{ marginTop:8 }}>
+                  {profile.strengths.map((s, i) => (
+                    <div key={i} className="strength-item">
+                      <span style={{ color:'#10b981', fontSize:'1rem', flexShrink:0, marginTop:2, fontWeight:700 }}>✓</span>
+                      <span>{s}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="result-card" style={{ marginBottom:0 }}>
+                <span className="section-tag" style={{ background:'#fee2e2', color:'#991b1b' }}>
+                  האתגרים שלך
+                </span>
+                <div style={{ marginTop:8 }}>
+                  {profile.challenges.map((c, i) => (
+                    <div key={i} className="challenge-item">
+                      <span style={{ fontSize:'1rem', flexShrink:0, marginTop:2 }}>🤚🏼</span>
+                      <span>{c}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Scale struggle */}
+            <div className="result-card" style={{ marginTop:16 }}>
+              <span className="section-tag" style={{ background:'#fef3c7', color:'#92400e' }}>
+                נקודת העיוורון שלך
+              </span>
+              <h2 style={{
+                fontSize:'1.22rem', fontWeight:800,
+                color:'#162547', margin:'8px 0 12px',
+              }}>
+                למה את מתקשה לעשות סקייל?
+              </h2>
+              <div className="divider-line" style={{ margin:'0 0 18px' }} />
+              <p style={{
+                color:'#2d3d56',
+                lineHeight:1.85,
+                fontSize:'.98rem',
+                fontWeight:400,
+                margin:0,
+              }}>
+                {profile.scaleStruggle}
+              </p>
+            </div>
+
+            {/* Footer CTA */}
+            <div style={{ marginTop:16 }}>
+              <CTABox />
+            </div>
+
+          </div>
+        </div>
+      );
+    }
+
+    /* ══════════════════════════════════════
+       APP ROOT
+    ══════════════════════════════════════ */
+    function App() {
+      const [step,     setStep]     = useState('intro');
+      const [profile,  setProfile]  = useState(null);
+      const [scores,   setScores]   = useState({ M:0, B:0, T:0, P:0 });
+      const [userName, setUserName] = useState('');
+
+      const handleQuizComplete = useCallback((finalScores) => {
+        setScores(finalScores);
+        setProfile(calcResult(finalScores));
+        setStep('form');
+        window.scrollTo({ top:0, behavior:'smooth' });
+      }, []);
+
+      const handleFormSuccess = useCallback((name) => {
+        setUserName(name);
+        setStep('result');
+      }, []);
+
+      if (step === 'result') {
+        return <ResultScreen profile={profile} scores={scores} userName={userName} />;
+      }
+
+      return (
+        <div style={{
+          position:'relative', minHeight:'100vh',
+          display:'flex', flexDirection:'column',
+          alignItems:'center', justifyContent:'center',
+          padding:'64px 16px',
+        }}>
+          <Background />
+          <div style={{ position:'relative', zIndex:10, width:'100%', display:'flex', flexDirection:'column', alignItems:'center' }}>
+            {step === 'intro' && <IntroScreen onStart={() => setStep('quiz')} />}
+            {step === 'quiz'  && <QuizScreen  onComplete={handleQuizComplete} />}
+            {step === 'form'  && <FormScreen  profile={profile} onSuccess={handleFormSuccess} />}
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
