@@ -320,6 +320,45 @@
 
     const WEBHOOK = 'https://hook.eu1.make.com/22713122q3hk52f8lbvhrvqcgrbqnc9p';
 
+    const RM_BASE        = 'https://graph.responder.live/v2';
+    const RM_CLIENT_ID   = '143';
+    const RM_SECRET      = '4oehPjI7ZJhOg6K9bP4zam0XTec147EfS9DSW2S0';
+    const RM_USER_TOKEN  = 'a208b32e03c8e0a756cfbab7b4dc84c549628ab3fd0f9c4d98c60e7976a9ce95';
+    const RM_LIST_ID     = 98761;
+
+    let _rmToken = null, _rmExpiry = 0;
+
+    async function getRmToken() {
+      if (_rmToken && Date.now() / 1000 < _rmExpiry - 300) return _rmToken;
+      const res = await fetch(`${RM_BASE}/oauth/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_id: RM_CLIENT_ID, client_secret: RM_SECRET,
+          user_token: RM_USER_TOKEN, grant_type: 'client_credentials',
+        }),
+      });
+      const d = await res.json();
+      if (!d.token) throw new Error('RM auth failed');
+      _rmToken = d.token; _rmExpiry = d.expire;
+      return _rmToken;
+    }
+
+    async function addToRavMesser(email, fullName) {
+      try {
+        const token = await getRmToken();
+        const [first_name, ...rest] = fullName.trim().split(' ');
+        const last_name = rest.join(' ');
+        await fetch(`${RM_BASE}/subscribers`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, list_id: RM_LIST_ID, first_name, last_name }),
+        });
+      } catch (e) {
+        console.warn('RavMesser:', e.message);
+      }
+    }
+
     const QUESTIONS = [
       { q: "כשיש לך רעיון לתוכן, מה קורה בפועל?", a: [
         { t: "מנסה לשפר אותו כדי שייצא הכי טוב שיש לפני שאני מעלה", type:"P" },
@@ -797,17 +836,22 @@
         setErrors({});
         setLoading(true);
         try {
-          const res = await fetch(WEBHOOK, {
-            method:'POST',
-            headers:{ 'Content-Type':'application/json' },
-            body: JSON.stringify({
-              full_name:             form.full_name.trim(),
-              email:                 form.email.trim(),
-              diagnosis_title:       profile.label,
-              diagnosis_description: profile.desc,
+          const [webhookRes] = await Promise.allSettled([
+            fetch(WEBHOOK, {
+              method:'POST',
+              headers:{ 'Content-Type':'application/json' },
+              body: JSON.stringify({
+                full_name:             form.full_name.trim(),
+                email:                 form.email.trim(),
+                diagnosis_title:       profile.label,
+                diagnosis_description: profile.desc,
+              }),
             }),
-          });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            addToRavMesser(form.email.trim(), form.full_name.trim()),
+          ]);
+          if (webhookRes.status === 'rejected' || (webhookRes.value && !webhookRes.value.ok)) {
+            throw new Error('webhook failed');
+          }
           onSuccess(form.full_name.trim());
         } catch (err) {
           console.error(err);
