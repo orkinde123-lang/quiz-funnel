@@ -320,6 +320,26 @@
 
     const WEBHOOK = 'https://hook.eu1.make.com/22713122q3hk52f8lbvhrvqcgrbqnc9p';
 
+    /* ── Email validation helpers ── */
+    const DOMAIN_FIXES = {
+      'gmal.com':'gmail.com','gmial.com':'gmail.com','gnail.com':'gmail.com',
+      'gmail.co':'gmail.com','gmail.con':'gmail.com','gmail.cm':'gmail.com',
+      'gmaill.com':'gmail.com','gamil.com':'gmail.com','gmaill.co':'gmail.com',
+      'yaho.com':'yahoo.com','yaoo.com':'yahoo.com','yahoo.con':'yahoo.com',
+      'hotmial.com':'hotmail.com','hotmal.com':'hotmail.com','hotmail.con':'hotmail.com',
+      'outlok.com':'outlook.com','outloook.com':'outlook.com','outllook.com':'outlook.com',
+      'walla.con':'walla.com','walla.co':'walla.com','wala.com':'walla.com',
+      'icloud.con':'icloud.com','icoud.com':'icloud.com',
+    };
+    function isValidEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim()); }
+    function suggestEmail(v) {
+      const at = v.indexOf('@');
+      if (at < 1) return null;
+      const domain = v.slice(at + 1).toLowerCase();
+      const fix = DOMAIN_FIXES[domain];
+      return fix ? v.slice(0, at + 1) + fix : null;
+    }
+
     async function addToRavMesser(email, fullName) {
       try {
         await fetch('/api/subscribe', {
@@ -743,7 +763,12 @@
     /* ══════════════════════════════════════
        FORM SCREEN
     ══════════════════════════════════════ */
-    function Field({ label, id, type='text', placeholder, value, onChange, error }) {
+    function Field({ label, id, type='text', placeholder, value, onChange, onBlur, error, hint, valid }) {
+      const borderColor = error
+        ? 'rgba(248,113,113,0.6)'
+        : valid
+          ? 'rgba(74,222,128,0.55)'
+          : 'rgba(130,147,177,0.20)';
       return (
         <div style={{ marginBottom:20 }}>
           <label htmlFor={id} style={{
@@ -753,32 +778,47 @@
           }}>
             {label}
           </label>
-          <input id={id} type={type} value={value} onChange={onChange}
-            placeholder={placeholder} autoComplete="off" dir="rtl"
-            style={{
-              width:'100%', padding:'14px 18px',
-              borderRadius:12,
-              fontSize:'1rem', fontFamily:"'Rubik', sans-serif", fontWeight:500,
-              color:'#e0e1dd',
-              background:'rgba(70,89,117,0.20)',
-              border: error ? '1.5px solid rgba(248,113,113,0.6)' : '1.5px solid rgba(130,147,177,0.20)',
-              outline:'none',
-              transition:'all .2s',
-            }}
-            onFocus={e => {
-              e.target.style.background = 'rgba(70,89,117,0.32)';
-              e.target.style.borderColor = 'rgba(130,147,177,0.55)';
-              e.target.style.boxShadow = '0 0 0 3px rgba(130,147,177,0.10)';
-            }}
-            onBlur={e => {
-              e.target.style.background = 'rgba(70,89,117,0.20)';
-              e.target.style.borderColor = error ? 'rgba(248,113,113,0.6)' : 'rgba(130,147,177,0.20)';
-              e.target.style.boxShadow = '';
-            }}
-          />
+          <div style={{ position:'relative' }}>
+            <input id={id} type={type} value={value} onChange={onChange}
+              placeholder={placeholder} autoComplete="off" dir="ltr"
+              style={{
+                width:'100%', padding:'14px 18px',
+                paddingLeft: valid ? 42 : 18,
+                borderRadius:12,
+                fontSize:'1rem', fontFamily:"'Rubik', sans-serif", fontWeight:500,
+                color:'#e0e1dd', textAlign:'right',
+                background:'rgba(70,89,117,0.20)',
+                border: `1.5px solid ${borderColor}`,
+                outline:'none',
+                transition:'all .2s',
+              }}
+              onFocus={e => {
+                e.target.style.background = 'rgba(70,89,117,0.32)';
+                e.target.style.borderColor = 'rgba(130,147,177,0.55)';
+                e.target.style.boxShadow = '0 0 0 3px rgba(130,147,177,0.10)';
+              }}
+              onBlur={e => {
+                e.target.style.background = 'rgba(70,89,117,0.20)';
+                e.target.style.borderColor = borderColor;
+                e.target.style.boxShadow = '';
+                if (onBlur) onBlur(e);
+              }}
+            />
+            {valid && (
+              <span style={{
+                position:'absolute', left:14, top:'50%', transform:'translateY(-50%)',
+                color:'rgba(74,222,128,0.85)', fontSize:'1.1rem', pointerEvents:'none',
+              }}>✓</span>
+            )}
+          </div>
           {error && (
-            <p style={{ marginTop:6, color:'rgba(248,113,113,0.9)', fontSize:'.82rem', fontWeight:600 }}>
-              {error}
+            <p style={{ marginTop:6, color:'rgba(248,113,113,0.9)', fontSize:'.82rem', fontWeight:600, display:'flex', alignItems:'center', gap:5 }}>
+              <span>⚠</span> {error}
+            </p>
+          )}
+          {hint && !error && (
+            <p style={{ marginTop:6, color:'rgba(251,191,36,0.9)', fontSize:'.82rem', fontWeight:600, display:'flex', alignItems:'center', gap:5 }}>
+              <span>💡</span> {hint}
             </p>
           )}
         </div>
@@ -786,30 +826,78 @@
     }
 
     function FormScreen({ profile, onSuccess }) {
-      const [form,      setForm]      = useState({ full_name:'', email:'' });
-      const [errors,    setErrors]    = useState({});
-      const [loading,   setLoading]   = useState(false);
-      const [serverErr, setServerErr] = useState('');
+      const [form,        setForm]        = useState({ full_name:'', email:'' });
+      const [errors,      setErrors]      = useState({});
+      const [touched,     setTouched]     = useState({});
+      const [emailHint,   setEmailHint]   = useState('');
+      const [emailValid,  setEmailValid]  = useState(false);
+      const [loading,     setLoading]     = useState(false);
+      const [serverErr,   setServerErr]   = useState('');
 
-      const set = k => e => setForm(p => ({ ...p, [k]: e.target.value }));
+      function validateEmailField(val) {
+        if (!val.trim()) return 'שדה חובה';
+        if (!isValidEmail(val)) return 'כתובת אימייל לא תקינה — בדקי שכתבת נכון';
+        return '';
+      }
+
+      const set = k => e => {
+        const val = e.target.value;
+        setForm(p => ({ ...p, [k]: val }));
+        if (touched[k]) {
+          if (k === 'email') {
+            const err = validateEmailField(val);
+            setErrors(p => ({ ...p, email: err }));
+            setEmailValid(!err && !suggestEmail(val));
+            setEmailHint(!err ? (suggestEmail(val) ? `האם התכוונת ל-${suggestEmail(val)}?` : '') : '');
+          }
+          if (k === 'full_name') {
+            setErrors(p => ({ ...p, full_name: val.trim() ? '' : 'שדה חובה' }));
+          }
+        }
+      };
+
+      const handleEmailBlur = () => {
+        setTouched(p => ({ ...p, email: true }));
+        const err = validateEmailField(form.email);
+        setErrors(p => ({ ...p, email: err }));
+        const suggestion = suggestEmail(form.email);
+        setEmailValid(!err && !suggestion);
+        setEmailHint(!err && suggestion ? `האם התכוונת ל-${suggestion}?` : '');
+      };
+
+      const handleNameBlur = () => {
+        setTouched(p => ({ ...p, full_name: true }));
+        if (!form.full_name.trim()) setErrors(p => ({ ...p, full_name: 'שדה חובה' }));
+      };
+
+      const applyEmailSuggestion = () => {
+        const suggestion = suggestEmail(form.email);
+        if (!suggestion) return;
+        setForm(p => ({ ...p, email: suggestion }));
+        setEmailHint('');
+        setEmailValid(true);
+        setErrors(p => ({ ...p, email: '' }));
+      };
 
       function validate() {
         const e = {};
         if (!form.full_name.trim()) e.full_name = 'שדה חובה';
-        if (!form.email.trim())     e.email     = 'שדה חובה';
-        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'כתובת אימייל לא תקינה';
+        const emailErr = validateEmailField(form.email);
+        if (emailErr) e.email = emailErr;
+        else if (suggestEmail(form.email)) e.email = `נראה שיש שגיאת הקלדה — האם התכוונת ל-${suggestEmail(form.email)}?`;
         return e;
       }
 
       async function handleSubmit(ev) {
         ev.preventDefault();
         setServerErr('');
+        setTouched({ full_name: true, email: true });
         const errs = validate();
         if (Object.keys(errs).length) { setErrors(errs); return; }
         setErrors({});
         setLoading(true);
         try {
-          const [webhookRes] = await Promise.allSettled([
+          await Promise.allSettled([
             fetch(WEBHOOK, {
               method:'POST',
               headers:{ 'Content-Type':'application/json' },
@@ -822,9 +910,6 @@
             }),
             addToRavMesser(form.email.trim(), form.full_name.trim()),
           ]);
-          if (webhookRes.status === 'rejected' || (webhookRes.value && !webhookRes.value.ok)) {
-            throw new Error('webhook failed');
-          }
           onSuccess(form.full_name.trim());
         } catch (err) {
           console.error(err);
@@ -870,9 +955,27 @@
 
             <form onSubmit={handleSubmit} noValidate>
               <Field label="שם מלא" id="full_name" placeholder="ישראלה ישראלי"
-                     value={form.full_name} onChange={set('full_name')} error={errors.full_name} />
+                     value={form.full_name} onChange={set('full_name')} onBlur={handleNameBlur}
+                     error={errors.full_name} />
               <Field label="כתובת אימייל" id="email" type="email" placeholder="you@example.com"
-                     value={form.email} onChange={set('email')} error={errors.email} />
+                     value={form.email} onChange={set('email')} onBlur={handleEmailBlur}
+                     error={errors.email} hint={emailHint} valid={emailValid} />
+              {emailHint && !errors.email && (
+                <div style={{ marginTop:-12, marginBottom:16 }}>
+                  <button type="button" onClick={applyEmailSuggestion} style={{
+                    background:'rgba(251,191,36,0.12)',
+                    border:'1px solid rgba(251,191,36,0.35)',
+                    borderRadius:8, padding:'7px 16px',
+                    color:'rgba(251,191,36,0.95)', fontSize:'.80rem', fontWeight:700,
+                    cursor:'pointer', fontFamily:"'Rubik', sans-serif",
+                    transition:'all .18s',
+                  }}
+                  onMouseEnter={e => e.target.style.background='rgba(251,191,36,0.22)'}
+                  onMouseLeave={e => e.target.style.background='rgba(251,191,36,0.12)'}>
+                    כן, תקני אוטומטית ←
+                  </button>
+                </div>
+              )}
 
               {serverErr && (
                 <div style={{
