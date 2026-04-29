@@ -320,104 +320,121 @@
 
     const WEBHOOK = 'https://hook.eu1.make.com/22713122q3hk52f8lbvhrvqcgrbqnc9p';
 
-    /* ── Email validation helpers ── */
+    /* ── RavMesser config ── */
+    const RM_BASE        = 'https://graph.responder.live/v2';
+    const RM_CLIENT_ID   = '143';
+    const RM_SECRET      = '4oehPjI7ZJhOg6K9bP4zam0XTec147EfS9DSW2S0';
+    const RM_USER_TOKEN  = 'a208b32e03c8e0a756cfbab7b4dc84c549628ab3fd0f9c4d98c60e7976a9ce95';
+    const RM_LIST_ID     = 97929;
+
+    async function getRmToken() {
+      const res = await fetch(`${RM_BASE}/oauth/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_id: RM_CLIENT_ID, client_secret: RM_SECRET, user_token: RM_USER_TOKEN, grant_type: 'client_credentials' }),
+      });
+      const d = await res.json();
+      if (!d.token) throw new Error('RM auth failed');
+      return d.token;
+    }
+
+    async function addToRavMesser(email, fullName) {
+      const token = await getRmToken();
+      const parts = (fullName || '').trim().split(' ');
+      await fetch(`${RM_BASE}/subscribers`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, list_ids: [RM_LIST_ID], first: parts[0] || '', last: parts.slice(1).join(' '), override: true, rejoin: true }),
+      });
+    }
+
+    /* ── Email validation ── */
     const DOMAIN_FIXES = {
       'gmal.com':'gmail.com','gmial.com':'gmail.com','gnail.com':'gmail.com',
       'gmail.co':'gmail.com','gmail.con':'gmail.com','gmail.cm':'gmail.com',
-      'gmaill.com':'gmail.com','gamil.com':'gmail.com','gmaill.co':'gmail.com',
+      'gmaill.com':'gmail.com','gamil.com':'gmail.com',
       'yaho.com':'yahoo.com','yaoo.com':'yahoo.com','yahoo.con':'yahoo.com',
       'hotmial.com':'hotmail.com','hotmal.com':'hotmail.com','hotmail.con':'hotmail.com',
-      'outlok.com':'outlook.com','outloook.com':'outlook.com','outllook.com':'outlook.com',
+      'outlok.com':'outlook.com','outloook.com':'outlook.com',
       'walla.con':'walla.com','walla.co':'walla.com','wala.com':'walla.com',
       'icloud.con':'icloud.com','icoud.com':'icloud.com',
     };
     function isValidEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim()); }
-    function suggestEmail(v) {
-      const at = v.indexOf('@');
+    function getSuggestion(v) {
+      var at = v.indexOf('@');
       if (at < 1) return null;
-      const domain = v.slice(at + 1).toLowerCase();
-      const fix = DOMAIN_FIXES[domain];
+      var domain = v.slice(at + 1).toLowerCase();
+      var fix = DOMAIN_FIXES[domain];
       return fix ? v.slice(0, at + 1) + fix : null;
     }
-
-    async function addToRavMesser(email, fullName) {
-      try {
-        await fetch('/api/subscribe', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, full_name: fullName }),
-        });
-      } catch (e) {
-        console.warn('RavMesser:', e.message);
-      }
-    }
+    const suggestEmail = getSuggestion;
 
     const QUESTIONS = [
       { q: "כשיש לך רעיון לתוכן, מה קורה בפועל?", a: [
-        { t: "מנסה לשפר אותו כדי שייצא הכי טוב שיש לפני שאני מעלה", type:"P" },
-        { t: "אומרת שאעשה את זה אבל לרוב לא עושה",                  type:"B" },
-        { t: "מצלמת לפי מה שראיתי שעובד לאחרים",                    type:"M" },
-        { t: "לומדת עוד ומדייקת לפני שמוציאה",                      type:"T" },
+        { t: "חושבת איך להוציא אותו הכי טוב עוד לפני שצילמתי",   type:"P" },
+        { t: "אומרת שאעשה את זה אבל לרוב לא עושה",               type:"B" },
+        { t: "בודקת קודם מה אחרים כבר עשו",                       type:"M" },
+        { t: "כותבת את הרעיון בצד וצופה במדריכים",                type:"T" },
       ]},
-      { q: "איך נראה עמוד האינסטגרם שלך היום?", a: [
-        { t: "מעט תוכן, לא באמת משקף את היכולות שלי",               type:"B" },
-        { t: "הרבה סוגים שונים של תוכן, אין קו ברור",               type:"M" },
-        { t: "נראה טוב אבל נראה כמו אחרות בתחום שלי",               type:"T" },
-        { t: "יחסית מושקע אבל אני מעלה מעט כי לוקח לי זמן",         type:"P" },
+      { q: "איך נראה האינסטגרם שלך?", a: [
+        { t: "מעט תוכן, שלא משקף את היכולות האמיתיות שלי",       type:"B" },
+        { t: "הרבה סוגים שונים של תוכן, אין קו ברור",             type:"M" },
+        { t: "סבבה אבל דומה לאחרות בתחום שלי",                    type:"T" },
+        { t: "מאוד מושקע, רק שאני מתעכבת על הפרטים הקטנים",       type:"P" },
       ]},
       { q: "כמה זמן לוקח לך להעלות סרטון?", a: [
-        { t: "לא הרבה זמן, אני פשוט מעלה",                           type:"M" },
-        { t: "לפעמים שעות על סרטון אחד",                             type:"P" },
-        { t: "אני לא באמת מגיעה לשלב הזה",                          type:"B" },
-        { t: "לוקח זמן כי אני עוד מנסה ליישם דברים שלמדתי",         type:"T" },
+        { t: "לא הרבה זמן, אני פשוט מעלה",                        type:"M" },
+        { t: "לפעמים שעות על סרטון אחד",                          type:"P" },
+        { t: "כמעט ולא מגיעה לשלב הזה",                           type:"B" },
+        { t: "לעיתים רחוקות, אני בעיקר מנסה ללמוד ולהשתפר",       type:"T" },
       ]},
       { q: "מה הכי מאפיין את התוכן שלך?", a: [
-        { t: "מבוסס על טרנדים או השראות שראיתי",                     type:"M" },
-        { t: "כמעט ואין תוכן",                                        type:"B" },
-        { t: "נותן ערך אבל לא מניב פניות",                           type:"T" },
-        { t: "מושקע מאוד אבל מתקשה לשחרר מהר",                      type:"P" },
+        { t: "הרבה טרנדים או השראות שראיתי אצל אחרים",            type:"M" },
+        { t: "אין לי מושג כי אין כמעט תוכן",                      type:"B" },
+        { t: "הרבה ערך עם מעט פניות",                              type:"T" },
+        { t: "מושקע מאוד מה שמעכב את קצב הפרסום",                 type:"P" },
       ]},
       { q: "מה קורה כשסרטון לא מביא תוצאה?", a: [
-        { t: "אני מנסה סגנון אחר בפעם הבאה",                         type:"M" },
-        { t: "זה מוריד לי את החשק להעלות שוב",                       type:"B" },
-        { t: "מנסה שוב להתמקצע וללמוד עוד אבל לא בטוחה מה לשנות",   type:"T" },
-        { t: "מתבאסת ומשווה את עצמי לאחרים",                         type:"P" },
+        { t: "מנסה סגנון אחר בפעם הבאה",                          type:"M" },
+        { t: "מוריד לי את החשק להעלות שוב",                       type:"B" },
+        { t: "עוצרת לנתח וללמוד מה לא עבד",                       type:"T" },
+        { t: "מתבאסת ומשווה את עצמי לאחרים",                      type:"P" },
       ]},
       { q: "איך את מקבלת החלטות על תוכן?", a: [
-        { t: "לפי מה שעובד לאחרים",                                   type:"M" },
-        { t: "לפי מה שמרגיש לי נכון באותו רגע",                      type:"P" },
-        { t: "לפי מה ששמעתי שעובד",                                   type:"T" },
-        { t: "אין לי תהליך קבוע",                                     type:"B" },
+        { t: "לפי מה שראיתי שתופס ברשת",                          type:"M" },
+        { t: "לפי מה שמרגיש לי נכון באותו רגע",                   type:"P" },
+        { t: "לפי הקהל ומה שלמדתי שעובד",                         type:"T" },
+        { t: "אין לי תהליך קבוע",                                  type:"B" },
       ]},
       { q: "מה הכי מתסכל אותך בתוכן?", a: [
-        { t: "שאני מעלה אבל אין לי מושג למה ומה יעבוד",              type:"M" },
-        { t: "מתקשה בלהתמיד",                                         type:"B" },
-        { t: "תמיד לומדת ומשקיעה… אבל לא באמת מתקדמת",              type:"T" },
-        { t: "לוקח לי הרבה זמן לשחרר ולהעלות תוכן",                  type:"P" },
+        { t: "להתפזר בלי להבין מה המטרה של כל דבר",               type:"M" },
+        { t: "שלב הרעיון והביצוע",                                 type:"B" },
+        { t: "התחושה שאני לא בטוחה אם זה מספיק טוב",              type:"T" },
+        { t: "ההתמדה, לוקח לי יותר מדי זמן לשחרר תוכן",           type:"P" },
       ]},
-      { q: "איך נראה תהליך העבודה שלך על העסק?", a: [
-        { t: "הרבה ניסוי וטעייה תוך כדי תנועה",                      type:"M" },
-        { t: "הרבה מחשבות ורעיונות שלא יוצאים לפועל",                type:"P" },
-        { t: "הרבה למידה והתעסקות בשיווק אבל מעט ביצוע בפועל",       type:"T" },
-        { t: "אני לא באמת בתוך זה ביום יום",                         type:"B" },
+      { q: "תהיי כנה עם עצמך — איך נראה תהליך העבודה שלך על העסק?", a: [
+        { t: "בעיקר ניסוי וטעייה תוך כדי תנועה",                  type:"M" },
+        { t: "המון רעיונות טובים שלא יוצאים לפועל",               type:"P" },
+        { t: "משקיעה בהתפתחות ולמידה ומעט בביצוע",                type:"T" },
+        { t: "אין תהליך עבודה מסודר",                              type:"B" },
       ]},
       { q: "מה המשפט שהכי קרוב למציאות שלך?", a: [
-        { t: "אני עושה מה שצריך אבל בלי תהליך ברור",                 type:"M" },
-        { t: "אני יודעת שאני טובה אבל זה לא משתקף בשיווק",           type:"B" },
-        { t: "אני לומדת ויודעת המון אבל לא מקבלת תוצאות",            type:"T" },
-        { t: "קשה לי להעלות תכנים שלא מרגישים לי מספיק טובים",       type:"P" },
+        { t: "אני עושה מה שצריך אבל בלי תהליך מסודר",             type:"M" },
+        { t: "אני יודעת שאני טובה אבל זה לא משתקף החוצה",         type:"B" },
+        { t: "אני לומדת ומשקיעה המון אבל לא מקבלת תוצאות",        type:"T" },
+        { t: "מתקשה מאוד להתמיד ולשחרר תכנים לאוויר",             type:"P" },
       ]},
       { q: "מאיפה מגיעים הלקוחות שלך?", a: [
-        { t: "רק מפה לאוזן",                                           type:"B" },
-        { t: "מהרשתות החברתיות, אבל לא בצורה יציבה",                  type:"M" },
-        { t: "ניסיתי כמה שיטות, אבל לא התמדתי באף אחת מהן",          type:"T" },
-        { t: "גם מפה לאוזן וגם מהרשתות",                              type:"P" },
+        { t: "רק מפה לאוזן",                                       type:"B" },
+        { t: "מהרשתות החברתיות, לא בצורה יציבה",                   type:"M" },
+        { t: "שיתופי פעולה ופה לאוזן",                             type:"T" },
+        { t: "גם מפה לאוזן וגם מהרשתות",                          type:"P" },
       ]},
       { q: "כמה זמן העסק שלך פעיל?", a: [
-        { t: "פחות מחצי שנה",    type:"X" },
-        { t: "בין חצי שנה לשנה", type:"X" },
-        { t: "שנה – שנתיים",     type:"X" },
-        { t: "מעל שנתיים",       type:"X" },
+        { t: "בין חצי שנה לשנה",  type:"X" },
+        { t: "שנה–שנתיים",        type:"X" },
+        { t: "שנתיים–שלוש",       type:"X" },
+        { t: "מעל 3 שנים",        type:"X" },
       ]},
     ];
 
@@ -426,9 +443,10 @@
     const PROFILES = {
       P: {
         label: "הפרפקציוניסטית",
+        emoji: "🔵",
         color: "#7c3aed",
         colorLight: "#ede9fe",
-        desc: "לא סתם את מתעכבת עם דברים, את פשוט לא מוכנה להוציא משהו שלא עומד בסטנדרט שלך. יש לך עין טובה, יש לך טעם, ואת יודעת לזהות מה נראה מקצועי ומה לא… הבעיה? שאת השופטת הכי גדולה של עצמך וזה בדיוק מה שתוקע אותך מלראות תוצאות.\n\nהרבה מהרעיונות שלך עוברים סינון קפדני ומחשבה ממושכת עד הפרטים הכי קטנים ונחשי מה? בסוף את לא מוציאה לפועל שום דבר.\n\nומה שקורה זה שהתוכן שלך לא מקבל הזדמנות להיות במבחן התוצאה.\n\nשורה תחתונה:\nכל יום שאת לא משווקת את מפסידה כסף!\nאת לא צריכה להיות יותר טובה. את צריכה להסכים לשחרר תוכן גם כשזה לא מושלם.",
+        desc: "את מתעכבת על הפרטים הקטנים וזה מה שעוצר אותך מלראות תוצאות בשיווק.\nבדומה ל'תסמונת המתחזה' יש בך חלק שחושש להראות לא מספיק מקצועית בעיני אחרים — מה שגורם לסטנדרטים לעלות גבוה מדי ולא לפגוש את שלב הביצוע.\n\nכנראה שכבר שמעת את זה על עצמך בעבר. יש לך עין טובה ואת יודעת לזהות מה נראה מקצועי ומה לא… הבעיה? שאת השופטת הכי גדולה של עצמך וזה בדיוק מה שתוקע אותך מלראות תוצאות.\n\nכל רעיון עובר אצלך סינון קפדני ומחשבה ממושכת — ונחשי מה? בסוף את לא מוציאה לפועל שום דבר. והשיווק שלך לא מקבל הזדמנות להתחיל לעבוד.\n\nמה את צריכה להבין מזה? מהירות ביצוע חשובה יותר משלמות. כל יום שאת לא משווקת את בעצם מפסידה כסף! את לא צריכה להשתפר — את צריכה לשים בצד את הרגש ולהתחיל לשחרר תכנים החוצה.",
         strengths: [
           "עין טובה לפרטים ולאיכות תוכן",
           "כשמשהו יוצא — הוא מרשים ומקצועי",
@@ -439,13 +457,14 @@
           "רעיונות נשארים בטיוטה ולא נבחנים",
           "אין דאטה לשיפור כי אין מה לנתח",
         ],
-        scaleStruggle: "כדי לעשות סקייל צריך דאטה, ודאטה מגיע רק מתוכן שיצא לאוויר. הפרפקציוניזם מונע ממך לאסוף את המידע שיגיד לך מה עובד — ובלי זה, לא ניתן להכפיל את מה שעובד.",
+        scaleStruggle: "כדי להשתפר בשיווק צריך דאטה, ודאטה מגיע רק מתוכן שיצא לאוויר. הפרפקציוניזם מונע ממך לאסוף את המידע שיגיד לך מה עובד — ובלי זה, אי אפשר לעלות לשלב הבא.",
       },
       T: {
         label: "התלמידה הנצחית",
+        emoji: "🟡",
         color: "#059669",
         colorLight: "#d1fae5",
-        desc: "את כנראה הרבה יותר מקצועית ומוכשרת מהקולגות שלך ואת תמיד בלמידה, עוד הכשרה עוד קורס ועוד השתלמות כדי להיות הכי טובה בתחום. יש לך אשליית התקדמות אבל זה לא מה שקורה לך בפועל בחשבון בנק. הלקוחות שלך לא מכירים אותך ואת נעלמת בין כל המתחרים בשוק.\n\nיש לך הרבה רעיונות שנשארים בגדר רעיונות ומחכים לזמן הנכון לצאת.\nובנתיים את נשארת במקום הבטוח שלך ובאיזור הנוחות — הלמידה.\n\nכל עוד לא תתחילי לעבוד על השיווק שלך הקולגות שפחות טובות ממך יקחו לך את הקהל הפוטנציאלי.\n\nובשיווק — למידה לא מייצרת תוצאות, פעולה כן.",
+        desc: "אם יצאת תלמידה נצחית, את כנראה לא יושבת בצד — להפך, את תמיד בעשייה ושיפור מתמיד. רואה תכנים, לומדת, משפרת הכל מהכל. יש לך תחושה שאת מתקדמת… אבל בפועל, משהו לא באמת זז.\n\nהרבה מהרעיונות נשארים בראש, הרבה דברים מחכים ל'רגע הנכון' או ל'כשאבין עד הסוף', ובינתיים את נשארת במקום שהוא די בטוח — למידה.\n\nזה לא שאת עצלנית. זה פשוט שהתרגלת לאשליית הלמידה במקום לעשייה.\n\nשורה תחתונה — כל יום שבו את בשיפור עצמי תמידי בלי פעולות, זה זמן שבו את מפסידה כסף!",
         strengths: [
           "ידע מקצועי עמוק יותר מרוב המתחרים",
           "מחויבות גבוהה לצמיחה ולמקצועיות",
@@ -456,13 +475,14 @@
           "הקהל הפוטנציאלי לא מכיר אותך",
           "הידע לא הופך ללקוחות ולהכנסות",
         ],
-        scaleStruggle: "הידע לבדו לא מייצר הכנסות — מנגנון שיווקי כן. כל עוד אין לך מערכת שמביאה לקוחות בצורה עקבית, הצמיחה תלויה במקרה ולא בשיטה. סקייל זה מתמטיקה, לא רק כישרון.",
+        scaleStruggle: "הידע לבדו לא מייצר הכנסות — מנגנון שיווקי כן. כל עוד אין לך מערכת שמביאה לקוחות בצורה עקבית, הצמיחה תלויה במקרה ולא בשיטה.",
       },
       M: {
         label: "המאלתרת",
+        emoji: "🟢",
         color: "#ea580c",
         colorLight: "#ffedd5",
-        desc: "אם יצאת מאלתרת, את כנראה בן אדם של עשייה. את מעלה, מנסה, זורמת, לא מפחדת להיחשף וזה יתרון גדול. אבל יחד עם זה, אין לך באמת כיוון ברור. כל פעם מנסה משהו אחר, רעיון אחר, סגנון אחר.\n\nלפעמים זה עובד, לפעמים פחות, אבל אין לך דרך עקבית שתוכלי לדעת מה באמת מביא לך תוצאות, אין לך נתונים מוגדרים להסתכל עליהם.\n\nזה נותן תחושת אשליה של תנועה כשבפועל את נשארת בדיוק באותו מקום רק עם פחות אנרגיה.\n\nשורה תחתונה:\nאת לא צריכה לעשות יותר — את צריכה להתפקס על כיוון אחד ברור ובצורה מדויקת.",
+        desc: "אם יצאת מאלתרת, את דווקא כן בעשייה. את מעלה, משפרת, לא מפחדת להיחשף — וזה יתרון גדול. אבל יחד עם זאת, אין לך באמת כיוון ברור. בכל פעם את מנסה סגנון או רעיון אחר.\n\nלפעמים זה עובד ולפעמים פחות, אבל אין לך דרך לדעת כי אין לך קו עקבי להסתכל עליו. זה אולי מרגיש שאת מתקדמת, אבל בפועל את באותו מקום ומתפזרת בין המון גישות.\n\nהשלב הבא שלך הוא להפסיק לחפש כל פעם גישה חדשה, ולהתמקד בשיטה אחת שעובדת עבורך.",
         strengths: [
           "אנרגיה ורצון עשייה גבוהים ואמיתיים",
           "לא מפחדת להיחשף ולנסות דברים חדשים",
@@ -473,13 +493,14 @@
           "אין נתונים עקביים לניתוח ושיפור",
           "תחושת עשייה רבה, תוצאות מועטות",
         ],
-        scaleStruggle: "סקייל זה חזרה על מה שעובד. כשכל פעם מנסים כיוון אחר, אי אפשר לזהות את הנוסחה המנצחת ואי אפשר להכפיל אותה. צריך להתמקד בדבר אחד, לאסוף ממנו נתונים, ואז לבנות עליו.",
+        scaleStruggle: "סקייל זה חזרה על מה שעובד. כשכל פעם מנסים כיוון אחר, אי אפשר לזהות את הנוסחה המנצחת. צריך להתמקד בדבר אחד, לאסוף ממנו נתונים, ואז לבנות עליו.",
       },
       B: {
         label: "הבלתי נראית",
+        emoji: "⚫",
         color: "#2563eb",
         colorLight: "#dbeafe",
-        desc: "אם יצאת בלתי נראית, זה כנראה כי אף אחד עוד לא נחשף אליך.\n\nאת מקצוענית במה שאת עושה אבל הקהל לא יודע שאת הפתרון שהוא צריך. קשה לך להוציא רעיונות לפועל, לפעמים זה מחוסר זמן, חוסר חשק או פשוט כי אין לך כוח להתחיל.\n\nאת מרגישה מותשת מכל פעולה שיווקית, אין לך עקביות מה שמשאיר אותך מאחורי הקלעים.\n\nובשיווק, אם לא רואים אותך — כנראה שגם לא יבחרו בך.\n\nבסופו של דבר כל אלו מובילים לתוצאה אחת — אנשים לא באמת מכירים אותך.",
+        desc: "אם יצאת בלתי נראית, זה כנראה מהסיבה שאת אשת צללים. יש לך הרבה מה לתת אבל זה ממש לא משתקף החוצה.\n\nאת מוכשרת מאוד ויש לך המון מה לתת — ובפועל את מתקשה להתמיד. יש לך תקופות שאת במוטיבציית שיא ומעלה תכנים ופעילה, ויש תקופות שאת נעלמת כאילו בלעה אותך האדמה.\n\nחוסר היציבות השיווקית הזה מחזיר אותך בכל פעם ללופ של להתחיל מחדש. כל זה מוביל לתוצאה אחת — את נשארת אנונימית עם כישרון מטורף מאחורי הקלעים.\n\nובשיווק — אם לא מכירים אותך לא יבחרו בך. אין כאן אסטרטגיה מתוחכמת. זה השלב הכי בסיסי: להיות נוכחת ולסמן שאת כאן.",
         strengths: [
           "מקצועית ואמינה בעיני לקוחות קיימים",
           "יכולת אמיתית לייצר תוצאות ללקוחות",
@@ -490,7 +511,7 @@
           "הקהל הרחב לא יודע שאת קיימת",
           "תלות בלעדית בפה לאוזן שלא ניתן לשלוט בו",
         ],
-        scaleStruggle: "פה לאוזן הוא ערוץ שאי אפשר לדרוש ממנו, לתזמן אותו, או להכפיל אותו. כדי לעשות סקייל צריך ערוץ דיגיטלי שמביא לקוחות חדשים באופן צפוי ויציב — בלי זה, הצמיחה תלויה במזל.",
+        scaleStruggle: "פה לאוזן הוא ערוץ שאי אפשר לדרוש ממנו, לתזמן אותו, או להכפיל אותו. להיות נוכחת ועקבית ברשת — זה השלב הראשון שאי אפשר לדלג עליו.",
       },
     };
 
@@ -559,7 +580,7 @@
             boxShadow:'0 0 0 6px rgba(130,147,177,0.10), 0 0 40px rgba(70,89,117,0.30)',
           }}>
             <img src="logo.png" alt="לוגו"
-              style={{ width:'100%', height:'100%', objectFit:'cover' }}
+              style={{ width:'100%', height:'100%', objectFit:'cover', filter:'brightness(0) invert(1)' }}
               onError={e => {
                 const sp = document.createElement('span');
                 sp.textContent = '✨';
@@ -682,6 +703,7 @@
       const [qIdx,      setQIdx]      = useState(0);
       const [scores,    setScores]    = useState({ M:0, B:0, T:0, P:0 });
       const [chosenIdx, setChosenIdx] = useState(null);
+      const [history,   setHistory]   = useState([]);
 
       const total = QUESTIONS.length;
       const pct   = Math.round(((qIdx + 1) / total) * 100);
@@ -689,6 +711,8 @@
       const pick = useCallback((type, idx) => {
         if (chosenIdx !== null) return;
         setChosenIdx(idx);
+        const savedScores = scores;
+        setHistory(h => [...h, savedScores]);
         const next = type !== 'X'
           ? { ...scores, [type]: scores[type] + 1 }
           : { ...scores };
@@ -700,18 +724,41 @@
         }, 480);
       }, [chosenIdx, scores, qIdx, total, onComplete]);
 
+      const goBack = useCallback(() => {
+        if (history.length === 0) return;
+        const prev = history[history.length - 1];
+        setHistory(h => h.slice(0, -1));
+        setScores(prev);
+        setQIdx(q => q - 1);
+        setChosenIdx(null);
+      }, [history]);
+
       return (
         <div className="animate-fade-up w-full" style={{ maxWidth:640 }}>
 
           {/* Progress */}
           <div style={{ marginBottom:28 }}>
             <div style={{
-              display:'flex', justifyContent:'space-between',
+              display:'flex', justifyContent:'space-between', alignItems:'center',
               fontSize:'.82rem', fontWeight:600,
               color:'rgba(130,147,177,0.7)', marginBottom:10,
             }}>
               <span>שאלה {qIdx + 1} מתוך {total}</span>
-              <span style={{ color:'#8293b1' }}>{pct}%</span>
+              {qIdx > 0 && (
+                <button onClick={goBack} disabled={chosenIdx !== null} style={{
+                  background:'none', border:'none', cursor:'pointer',
+                  color:'rgba(130,147,177,0.65)', fontSize:'.82rem', fontWeight:600,
+                  fontFamily:"'Rubik', sans-serif",
+                  display:'flex', alignItems:'center', gap:5,
+                  padding:'4px 8px', borderRadius:8,
+                  transition:'color .18s',
+                  opacity: chosenIdx !== null ? 0.4 : 1,
+                }}
+                  onMouseEnter={e => e.currentTarget.style.color='rgba(130,147,177,1)'}
+                  onMouseLeave={e => e.currentTarget.style.color='rgba(130,147,177,0.65)'}>
+                  → חזרה
+                </button>
+              )}
             </div>
             <div style={{
               height:4, background:'rgba(255,255,255,0.07)',
@@ -833,6 +880,8 @@
       const [emailValid,  setEmailValid]  = useState(false);
       const [loading,     setLoading]     = useState(false);
       const [serverErr,   setServerErr]   = useState('');
+      const [consent,     setConsent]     = useState(false);
+      const [consentErr,  setConsentErr]  = useState('');
 
       function validateEmailField(val) {
         if (!val.trim()) return 'שדה חובה';
@@ -893,6 +942,8 @@
         setServerErr('');
         setTouched({ full_name: true, email: true });
         const errs = validate();
+        if (!consent) { setConsentErr('יש לאשר קבלת דיוורים להמשך'); errs._consent = true; }
+        else { setConsentErr(''); }
         if (Object.keys(errs).length) { setErrors(errs); return; }
         setErrors({});
         setLoading(true);
@@ -931,16 +982,6 @@
             boxShadow:'0 24px 64px rgba(22,37,71,0.45)',
           }}>
             <div style={{ textAlign:'center', marginBottom:32 }}>
-              <div style={{
-                width:56, height:56, borderRadius:'50%',
-                background:'rgba(130,147,177,0.14)',
-                border:'1.5px solid rgba(130,147,177,0.22)',
-                display:'flex', alignItems:'center', justifyContent:'center',
-                margin:'0 auto 16px',
-                fontSize:'1.5rem',
-              }}>
-                🎯
-              </div>
               <h2 style={{
                 color:'#e0e1dd', fontSize:'1.65rem',
                 fontWeight:800, margin:'0 0 10px',
@@ -988,6 +1029,51 @@
                   {serverErr}
                 </div>
               )}
+
+              {/* Consent checkbox */}
+              <div style={{ marginBottom:18, marginTop:4 }}>
+                <label style={{
+                  display:'flex', alignItems:'flex-start', gap:12,
+                  cursor:'pointer', userSelect:'none',
+                }}>
+                  <div style={{ position:'relative', flexShrink:0, marginTop:2 }}>
+                    <input
+                      type="checkbox"
+                      checked={consent}
+                      onChange={e => { setConsent(e.target.checked); if (e.target.checked) setConsentErr(''); }}
+                      style={{ position:'absolute', opacity:0, width:0, height:0 }}
+                    />
+                    <div style={{
+                      width:20, height:20, borderRadius:6,
+                      border: consentErr
+                        ? '2px solid rgba(248,113,113,0.7)'
+                        : consent
+                          ? '2px solid #8293b1'
+                          : '2px solid rgba(130,147,177,0.40)',
+                      background: consent ? 'rgba(130,147,177,0.25)' : 'rgba(70,89,117,0.20)',
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      transition:'all .18s',
+                    }}>
+                      {consent && (
+                        <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+                          <path d="M1 4L4 7.5L10 1" stroke="#8293b1" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      )}
+                    </div>
+                  </div>
+                  <span style={{
+                    fontSize:'.83rem', color:'rgba(130,147,177,0.80)',
+                    fontWeight:500, lineHeight:1.55,
+                  }}>
+                    אני מאשר/ת קבלת דיוורים, תכנים ועדכונים לכתובת המייל שלי
+                  </span>
+                </label>
+                {consentErr && (
+                  <p style={{ margin:'6px 0 0 32px', color:'rgba(248,113,113,0.9)', fontSize:'.80rem', fontWeight:600 }}>
+                    {consentErr}
+                  </p>
+                )}
+              </div>
 
               <button type="submit" disabled={loading} style={{
                 width:'100%', marginTop:4,
@@ -1079,13 +1165,6 @@
                   }}>
                     {prof.label} {isWinner && '⭐'}
                   </span>
-                  <span style={{
-                    fontSize:'.85rem',
-                    color: isWinner ? '#465975' : '#9ca3af',
-                    fontWeight:700,
-                  }}>
-                    {pct}%
-                  </span>
                 </div>
                 <div className="score-bar-track">
                   <div className="score-bar-fill" style={{
@@ -1120,7 +1199,7 @@
           <div className="result-hero">
             <Logo small />
             <div style={{ marginTop:22, position:'relative', zIndex:1 }}>
-              <div className="hero-badge">הפרופיל השיווקי שלך</div>
+              <div className="hero-badge">תוצאת האבחון שלך</div>
               <h1 style={{
                 color:'#e0e1dd',
                 fontSize:'clamp(2rem,6vw,3rem)',
@@ -1143,7 +1222,7 @@
                 maxWidth:520, margin:'0 auto',
                 fontWeight:400,
               }}>
-                הנה הדרך המומלצת עבורך להכפיל את הרווחים בעסק וגם ליהנות מהעשייה שלך
+                הנה התוצאה של האבחון השיווקי שלך ודרכי פעולה לשפר את המצב
               </p>
             </div>
           </div>
@@ -1260,6 +1339,65 @@
     }
 
     /* ══════════════════════════════════════
+       COOKIE BANNER
+    ══════════════════════════════════════ */
+    function CookieBanner() {
+      const [visible, setVisible] = useState(() => !localStorage.getItem('cookieConsent'));
+
+      if (!visible) return null;
+
+      const accept = () => { localStorage.setItem('cookieConsent', 'accepted'); setVisible(false); };
+      const decline = () => { localStorage.setItem('cookieConsent', 'declined'); setVisible(false); };
+
+      return (
+        <div style={{
+          position:'fixed', bottom:0, left:0, right:0, zIndex:9999,
+          background:'rgba(22,37,71,0.97)',
+          borderTop:'1px solid rgba(130,147,177,0.18)',
+          backdropFilter:'blur(16px)',
+          padding:'18px 24px',
+          display:'flex', flexWrap:'wrap', alignItems:'center',
+          gap:14, justifyContent:'space-between',
+        }}>
+          <p style={{
+            color:'rgba(224,225,221,0.78)', fontSize:'.84rem',
+            lineHeight:1.6, margin:0, fontWeight:400,
+            flex:'1 1 260px', minWidth:0,
+          }}>
+            אנחנו משתמשים בעוגיות (Cookies) לשיפור חוויית השימוש ולניתוח תנועה באתר.
+            {' '}<span style={{ color:'rgba(130,147,177,0.75)' }}>המשך גלישה מהווה הסכמה למדיניות הפרטיות.</span>
+          </p>
+          <div style={{ display:'flex', gap:10, flexShrink:0 }}>
+            <button onClick={decline} style={{
+              background:'transparent',
+              border:'1px solid rgba(130,147,177,0.28)',
+              color:'rgba(130,147,177,0.75)', borderRadius:50,
+              padding:'9px 20px', fontSize:'.82rem', fontWeight:600,
+              cursor:'pointer', fontFamily:"'Rubik', sans-serif",
+              transition:'all .18s',
+            }}
+              onMouseEnter={e => e.currentTarget.style.borderColor='rgba(130,147,177,0.55)'}
+              onMouseLeave={e => e.currentTarget.style.borderColor='rgba(130,147,177,0.28)'}>
+              דחה
+            </button>
+            <button onClick={accept} style={{
+              background:'linear-gradient(145deg, #465975, #2a4060)',
+              border:'1px solid rgba(130,147,177,0.25)',
+              color:'#e0e1dd', borderRadius:50,
+              padding:'9px 22px', fontSize:'.82rem', fontWeight:700,
+              cursor:'pointer', fontFamily:"'Rubik', sans-serif",
+              transition:'all .18s',
+            }}
+              onMouseEnter={e => e.currentTarget.style.transform='translateY(-1px)'}
+              onMouseLeave={e => e.currentTarget.style.transform=''}>
+              אישור ✓
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    /* ══════════════════════════════════════
        APP ROOT
     ══════════════════════════════════════ */
     function App() {
@@ -1281,7 +1419,12 @@
       }, []);
 
       if (step === 'result') {
-        return <ResultScreen profile={profile} scores={scores} userName={userName} />;
+        return (
+          <>
+            <ResultScreen profile={profile} scores={scores} userName={userName} />
+            <CookieBanner />
+          </>
+        );
       }
 
       return (
@@ -1297,6 +1440,7 @@
             {step === 'quiz'  && <QuizScreen  onComplete={handleQuizComplete} />}
             {step === 'form'  && <FormScreen  profile={profile} onSuccess={handleFormSuccess} />}
           </div>
+          <CookieBanner />
         </div>
       );
     }
