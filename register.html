@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>שאלון אבחון שיווקי</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { heebo: ['Heebo', 'sans-serif'] },
+          keyframes: {
+            fadeUp:   { from: { opacity:'0', transform:'translateY(22px)' }, to: { opacity:'1', transform:'translateY(0)' } },
+            checkPop: { '0%':{ transform:'scale(0)' }, '65%':{ transform:'scale(1.2)' }, '100%':{ transform:'scale(1)' } },
+            spinR:    { to:{ transform:'rotate(360deg)' } },
+          },
+          animation: {
+            'fade-up':   'fadeUp 0.6s ease both',
+            'check-pop': 'checkPop 0.5s cubic-bezier(.34,1.56,.64,1) both',
+            'spin-btn':  'spinR 0.8s linear infinite',
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    body { font-family: 'Heebo', sans-serif; }
+
+    /* floating shapes (inline duration injected via style prop) */
+    @keyframes floatCircle {
+      0%  { transform:translateY(110vh); opacity:0; }
+      6%  { opacity:.11; }
+      92% { opacity:.11; }
+      100%{ transform:translateY(-8vh); opacity:0; }
+    }
+    @keyframes floatDiamond {
+      0%  { transform:translateY(110vh) rotate(45deg); opacity:0; }
+      6%  { opacity:.08; }
+      92% { opacity:.08; }
+      100%{ transform:translateY(-8vh) rotate(225deg); opacity:0; }
+    }
+    .fc { animation-name:floatCircle;  animation-timing-function:linear; animation-iteration-count:infinite; }
+    .fd { animation-name:floatDiamond; animation-timing-function:linear; animation-iteration-count:infinite; }
+
+    /* answer button hover — needs translateX which Tailwind peer variants don't handle cleanly */
+    .ans-btn {
+      background:rgba(255,255,255,.055);
+      border:1px solid rgba(255,255,255,.1);
+      border-radius:13px;
+      padding:15px 20px;
+      text-align:right;
+      color:#c2d8ef;
+      font-size:.96rem;
+      font-family:inherit;
+      cursor:pointer;
+      line-height:1.5;
+      width:100%;
+      transition:all .18s;
+      display:block;
+    }
+    .ans-btn:hover:not(:disabled) {
+      background:rgba(74,143,232,.14);
+      border-color:rgba(74,143,232,.38);
+      color:#fff;
+      transform:translateX(-4px);
+    }
+    .ans-btn.chosen {
+      background:rgba(74,143,232,.24);
+      border-color:#4a8fe8;
+      color:#fff;
+      transform:translateX(-4px);
+    }
+    .ans-btn.dimmed { opacity:.3; pointer-events:none; }
+
+    /* webkit autofill override */
+    input:-webkit-autofill,
+    input:-webkit-autofill:focus {
+      -webkit-box-shadow:0 0 0 1000px rgba(34,51,88,.95) inset !important;
+      -webkit-text-fill-color:#fff !important;
+    }
+  </style>
+</head>
+
+<body class="bg-[#1a2a44] min-h-screen">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useCallback } = React;
+
+    /* ────────────────────────────────────────────
+       CONFIG
+    ──────────────────────────────────────────── */
+    const WEBHOOK = 'https://hook.eu1.make.com/22713122q3hk52f8lbvhrvqcgrbqnc9p';
+
+    /* ────────────────────────────────────────────
+       QUIZ DATA
+       P = פרפקציוניסטית | B = בלתי נראית
+       M = מאלתרת         | T = התלמידה הנצחית
+    ──────────────────────────────────────────── */
+    const QUESTIONS = [
+      { q: "מה קורה כשאת מתכננת לפרסם תוכן?", a: [
+        { t: "בודקת ועורכת שוב ושוב עד שזה נשמע מושלם לחלוטין", type:"P" },
+        { t: "נרתעת ולא מפרסמת — בטוח אף אחד ממילא לא ישים לב",  type:"B" },
+        { t: "מפרסמת ספונטנית מה שמתחשק לי ברגע נתון",            type:"M" },
+        { t: "עדיין לומדת איך לכתוב תוכן שיווקי נכון",             type:"T" },
+      ]},
+      { q: "מה את מרגישה כשצריך לשתף תמונה שלך ברשתות?", a: [
+        { t: "רק אם התמונה מושלמת ועברה עריכה מקצועית — אחרת לא", type:"P" },
+        { t: "לא נוח לי, אני מעדיפה להישאר מאחורי הקלעים",         type:"B" },
+        { t: "מעלה כל תמונה שנראית לי בסדר — פשוט ומהיר",          type:"M" },
+        { t: "עדיין לא מצאתי את הסטייל הנכון שלי לרשתות",          type:"T" },
+      ]},
+      { q: "כשלקוח פוטנציאלי שואל על המחיר שלך, את...", a: [
+        { t: "מסבירה ומצדיקה הרבה כדי שיהיה ברור שזה שווה כל שקל", type:"P" },
+        { t: "מבולבלת, לא בטוחה כמה לבקש, לפעמים מוותרת על המחיר", type:"B" },
+        { t: "נותנת מחיר שונה בהתאם לאיך שמרגישה באותו יום",       type:"M" },
+        { t: "עוד לא קבעתי מחירים ברורים, עדיין חוקרת את השוק",    type:"T" },
+      ]},
+      { q: "מה קורה כשאת צריכה לבקש המלצה מלקוח מרוצה?", a: [
+        { t: "מחכה לרגע ולניסוח המושלמים — ולכן זה בדרך כלל לא קורה", type:"P" },
+        { t: "לא מבקשת, לא נוח לי להטריד אנשים גם אם הם מרוצים",      type:"B" },
+        { t: "לפעמים כן, לפעמים שוכחת — אין לי שיטה קבועה",            type:"M" },
+        { t: "לא הכנתי תבנית מסודרת לבקשת המלצה אז דחיתי את זה",      type:"T" },
+      ]},
+      { q: "איך את מגדירה את קהל היעד שלך?", a: [
+        { t: "יש לי הגדרה מפורטת אבל עדיין מרגישה שהיא לא מושלמת",   type:"P" },
+        { t: "קשה לי לצמצם — אני לא רוצה להדיר אף אחד",              type:"B" },
+        { t: "אני פונה למי שנראה לי רלוונטי בכל פעם מחדש",           type:"M" },
+        { t: "קראתי הרבה על קהלי יעד אבל עדיין לא הגדרתי בצורה ממשית", type:"T" },
+      ]},
+      { q: "כמה זמן לוקח לך להוציא פוסט שיווקי אחד לאוויר?", a: [
+        { t: "שעות — עורכת, מוחקת וכותבת מחדש עד שזה נשמע מדויק",  type:"P" },
+        { t: "לא משנה כמה זמן, רוב הפוסטים שלי נשארים בטיוטה",      type:"B" },
+        { t: "רבע שעה מקסימום — כותבת, מפרסמת, ממשיכה הלאה",        type:"M" },
+        { t: "עוד לא פרסמתי, מחכה שיהיה לי קול אותנטי ברור יותר",   type:"T" },
+      ]},
+      { q: "מה קורה כשמתחרה מפרסמת משהו דומה למה שאת עושה?", a: [
+        { t: "בודקת שהתוכן שלי מדויק ומושלם יותר מהמתחרה",         type:"P" },
+        { t: "חושבת שהיא כבר תפסה את המקום ואין לי מה להוסיף",      type:"B" },
+        { t: "מתעלמת לחלוטין ומפרסמת מה שבא לי",                   type:"M" },
+        { t: "מתחילה ללמוד ממנה מה היא עושה שאני עדיין לא",          type:"T" },
+      ]},
+      { q: "איך נראה לוח הפרסום שלך ברשתות?", a: [
+        { t: "יש לי לוח אבל לרוב לא עומדת בו כי הפוסטים לא מוכנים בזמן", type:"P" },
+        { t: "פרסמתי תקופה ואז הפסקתי כשלא ראיתי תגובות",                type:"B" },
+        { t: "אין לי לוח קבוע — מפרסמת כשבא לי ועוצרת כשקשה",            type:"M" },
+        { t: "עדיין בשלב ההכנה, לא התחלתי לפרסם באופן קבוע",             type:"T" },
+      ]},
+      { q: "מה עולה לך בראש כשאת שומעת \"מיתוג אישי\"?", a: [
+        { t: "יודעת שזה חשוב, אבל בכל פעם שמתחילה זה לא נראה מספיק נכון", type:"P" },
+        { t: "מעדיפה לשים את הלקוחות במרכז ולא להיות \"פרזנטורית\"",        type:"B" },
+        { t: "יש לי צבעים וסלוגן שעשיתי בעצמי — זה מספיק לי כרגע",         type:"M" },
+        { t: "קראתי הרבה על מיתוג אבל עדיין מחכה שיהיה לי יותר ברור",      type:"T" },
+      ]},
+      { q: "מה קורה כשאת מקבלת תגובה שלילית על תוכן שפרסמת?", a: [
+        { t: "נעלבת עמוקות ולוקח לי זמן להתאושש ולחזור לפרסם",          type:"P" },
+        { t: "זה מאשש שעדיף לא להיות נראית יותר מדי ברשתות",            type:"B" },
+        { t: "מגיבה מיד ועוברת הלאה — לא לוקחת את זה יותר מדי ללב",     type:"M" },
+        { t: "כותבת לעצמי הערות ומיד מחפשת קורס לשיפור הכתיבה שלי",    type:"T" },
+      ]},
+      { q: "מה המשפט הכי קרוב לאמת לגבי השיווק שלך כרגע?", a: [
+        { t: "\"יש לי הרבה תוכן מוכן שעדיין לא יצא לאוויר\"",          type:"P" },
+        { t: "\"אנשים לא ממש יודעים שאני קיימת ומה אני עושה\"",         type:"B" },
+        { t: "\"אני פעילה ברשתות אבל ללא כיוון ברור ועקביות\"",         type:"M" },
+        { t: "\"אני עדיין מכינה את עצמי לפני שאתחיל ברצינות\"",        type:"T" },
+      ]},
+    ];
+
+    /* ────────────────────────────────────────────
+       RESULT PROFILES
+    ──────────────────────────────────────────── */
+    const RESULTS = {
+      P: {
+        emoji: "💜", hex: "#7c3aed",
+        label: "פרפקציוניסטית",          // ← this becomes diagnosis_result
+        title: "את הפרפקציוניסטית",
+        desc:  "השיווק שלך לא מביא לקוחות כי את מחכה שהכל יהיה מושלם לפני שמפרסמות. כותבת פוסט 10 פעמים, משנה עיצובים שוב ושוב, ובסוף לא מפרסמת כי \"עוד לא מוכן\". הפחד מביקורת גדול מהרצון להתקדם. הבשורה הטובה? כישרון וסטנדרטים גבוהים יש לך בשפע — צריך רק לשחרר.",
+        steps: [
+          "קבעי כלל ברזל: כל תוכן שעברו עליו 30 דקות — יוצא, בלי עוד עריכות",
+          "שיטת ה-80/20: פוסט ב-80% מוכנות שיצא לאוויר עדיף על 100% שנשאר בטיוטה לנצח",
+          "פרסמי פוסט ניסיוני קטן אחד השבוע ללא עריכה — ותוכיחי לעצמך שהעולם לא נגמר",
+        ],
+      },
+      B: {
+        emoji: "💙", hex: "#1d6fb8",
+        label: "בלתי נראית",
+        title: "את הבלתי נראית",
+        desc:  "את יודעת מה לעשות ומה את שווה — אבל מתחבאת מאחורי הכלים, המוצרים, המקצוע. לקוחות צריכים לסמוך עליך ולהכיר אותך אישית, אבל הם לא יכולים כי את פשוט לא נוכחת. הסיבה היא לרוב פחד מחשיפה, לא חוסר ידע. נוכחות קטנה ואמיתית חזקה פי אלף מהיעדרות מוחלטת.",
+        steps: [
+          "התחייבי לשתף תמונה אחת שלך בשבוע — לא חייב מקצועי, גם תמונה ביתית מספיקה",
+          "כתבי פוסט אחד בשבוע בגוף ראשון על עצמך, על הדרך שעברת ועל מה שאת מאמינה בו",
+          "הגיבי על 3 שאלות בקבוצות פייסבוק רלוונטיות — הדרך הכי מהירה להיראות כמומחית",
+        ],
+      },
+      M: {
+        emoji: "🧡", hex: "#c2410c",
+        label: "מאלתרת",
+        title: "את המאלתרת",
+        desc:  "יש לך אנרגיה, יצירתיות ורצון אמיתי — אבל השיווק שלך לא עקבי ולא אסטרטגי. מפרסמת כשמתחשק, עוצרת כשקשה, מתחילה מחדש שוב ושוב. ללקוחות קשה לסמוך על מישהי שנעלמת ומופיעה לסירוגין. הבשורה הטובה? יש לך בסיס מצוין — צריך רק מסגרת פשוטה ועקבית.",
+        steps: [
+          "בחרי 2 פלטפורמות בלבד והתמקדי בהן — פיזור יוצר אשליה של עשייה בלי תוצאות",
+          "קבעי יום ושעה קבועים בשבוע לכתיבת תוכן ותמסרי לזה כמו לפגישת לקוח חשובה",
+          "צרי קובץ 'בנק תוכן' עם 20 רעיונות מוכנים — כך לא תיפלי לקיפאון בימים שקשה",
+        ],
+      },
+      T: {
+        emoji: "💚", hex: "#15803d",
+        label: "התלמידה הנצחית",
+        title: "את התלמידה הנצחית",
+        desc:  "את רוכשת קורסים, קוראת ספרים, עוקבת אחרי מומחים — ובאמת לומדת ומתעמקת. אבל הלמידה הפכה לתירוץ לא להתחיל. \"עוד קורס אחד ואז אתחיל\" — אבל האחד הזה תמיד מצטרף לאחד נוסף. הידע שיש לך עכשיו מספיק. לקוחות לא צריכות שתהיי מושלמת — הם צריכות שתהיי נוכחת.",
+        steps: [
+          "בחרי קורס אחד שסיימת — ויישמי ממנו שלוש פעולות קונקרטיות עד סוף השבוע",
+          "כלל 1:1: על כל שעת למידה חדשה — שעת יישום מיידית. בלי פשרות",
+          "פרסמי את הפוסט הראשון שלך עד מחר בצהריים — גם אם הוא לא מושלם",
+        ],
+      },
+    };
+
+    function calcResult(scores) {
+      const type = Object.keys(scores).reduce((a, b) => scores[a] >= scores[b] ? a : b);
+      return { type, ...RESULTS[type] };
+    }
+
+    /* ────────────────────────────────────────────
+       BACKGROUND
+    ──────────────────────────────────────────── */
+    const SHAPES = [
+      { w:72,  left:'7%',  delay:0,  dur:20, t:'c' },
+      { w:44,  left:'21%', delay:5,  dur:25, t:'d' },
+      { w:88,  left:'37%', delay:8,  dur:28, t:'c' },
+      { w:28,  left:'53%', delay:1,  dur:17, t:'d' },
+      { w:56,  left:'68%', delay:10, dur:22, t:'c' },
+      { w:46,  left:'84%', delay:4,  dur:30, t:'d' },
+      { w:22,  left:'3%',  delay:13, dur:16, t:'c' },
+      { w:74,  left:'47%', delay:16, dur:24, t:'d' },
+      { w:36,  left:'92%', delay:2,  dur:21, t:'c' },
+      { w:50,  left:'28%', delay:18, dur:27, t:'d' },
+    ];
+
+    function Background() {
+      return (
+        <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+          {SHAPES.map((s, i) => (
+            <div key={i}
+              className={s.t === 'c' ? 'fc' : 'fd'}
+              style={{
+                position:'absolute', width:s.w, height:s.w,
+                left:s.left, bottom:-(s.w+10),
+                borderRadius: s.t==='c' ? '50%' : '0',
+                border: s.t==='c'
+                  ? '1.5px solid rgba(74,143,232,0.22)'
+                  : '1.5px solid rgba(240,192,64,0.18)',
+                animationDuration:`${s.dur}s`,
+                animationDelay:`${s.delay}s`,
+              }} />
+          ))}
+        </div>
+      );
+    }
+
+    /* ────────────────────────────────────────────
+       LOGO
+    ──────────────────────────────────────────── */
+    function Logo() {
+      return (
+        <div className="flex justify-center mb-8">
+          <div className="w-[90px] h-[90px] rounded-full overflow-hidden border-2 border-[#4a8fe8]
+                          bg-[#223358] flex items-center justify-center
+                          shadow-[0_0_0_5px_rgba(74,143,232,0.12),0_0_36px_rgba(74,143,232,0.28)]">
+            <img src="logo.png" alt="לוגו" className="w-full h-full object-cover"
+              onError={e => {
+                const s = document.createElement('span');
+                s.textContent='✨'; s.style.fontSize='2rem';
+                e.target.replaceWith(s);
+              }} />
+          </div>
+        </div>
+      );
+    }
+
+    /* ────────────────────────────────────────────
+       SCREEN 1 — INTRO
+    ──────────────────────────────────────────── */
+    function IntroScreen({ onStart }) {
+      return (
+        <div className="animate-fade-up text-center max-w-[560px] w-full">
+          <Logo />
+          <h1 className="text-[1.85rem] font-extrabold leading-[1.4] text-white mb-5">
+            תוך 3 דקות תביני למה השיווק שלך לא מביא לקוחות
+          </h1>
+          <p className="text-[#8aafc8] text-[1.05rem] leading-[1.75] mb-9">
+            הכנתי עבורך שאלון אבחון קצר שבסיומו תקבלי אבחון ודרך פעולה למצב הנוכחי שלך, בואי נתחיל
+          </p>
+          <div className="flex flex-wrap justify-center gap-3 mb-9">
+            {['⏱ 3 דקות בלבד','11 שאלות','אבחון אישי מיידי'].map(t => (
+              <span key={t} className="bg-[rgba(74,143,232,0.12)] border border-[rgba(74,143,232,0.25)]
+                                       text-[#4a8fe8] px-4 py-1.5 rounded-full text-[0.82rem] font-medium">
+                {t}
+              </span>
+            ))}
+          </div>
+          <button onClick={onStart}
+            className="bg-gradient-to-br from-[#4a8fe8] to-[#1e5fd4] text-white font-bold
+                       px-11 py-4 rounded-full text-[1.05rem] cursor-pointer
+                       transition-all duration-200 shadow-[0_4px_22px_rgba(74,143,232,0.4)]
+                       hover:-translate-y-0.5 hover:shadow-[0_8px_32px_rgba(74,143,232,0.5)]
+                       active:translate-y-0">
+            בואי נתחיל ←
+          </button>
+        </div>
+      );
+    }
+
+    /* ────────────────────────────────────────────
+       SCREEN 2 — QUIZ
+    ──────────────────────────────────────────── */
+    function QuizScreen({ onComplete }) {
+      const [qIdx,    setQIdx]    = useState(0);
+      const [scores,  setScores]  = useState({ P:0, B:0, M:0, T:0 });
+      const [chosen,  setChosen]  = useState(null);   // type string while animating
+
+      const total = QUESTIONS.length;
+      const pct   = Math.round(((qIdx + 1) / total) * 100);
+
+      const pick = useCallback((type) => {
+        if (chosen !== null) return;
+        setChosen(type);
+        const next = { ...scores, [type]: scores[type] + 1 };
+        setScores(next);
+        setTimeout(() => {
+          const nextIdx = qIdx + 1;
+          if (nextIdx < total) {
+            setQIdx(nextIdx);
+            setChosen(null);
+          } else {
+            onComplete(next);
+          }
+        }, 480);
+      }, [chosen, scores, qIdx, total, onComplete]);
+
+      return (
+        <div className="animate-fade-up w-full max-w-[620px]">
+          {/* progress */}
+          <div className="mb-7">
+            <div className="flex justify-between text-[0.82rem] text-[#8aafc8] mb-2">
+              <span>שאלה {qIdx + 1} מתוך {total}</span>
+              <span>{pct}%</span>
+            </div>
+            <div className="h-[5px] bg-white/[0.08] rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-l from-[#7bbcff] to-[#4a8fe8] rounded-full
+                              transition-all duration-500 ease-[cubic-bezier(.4,0,.2,1)]"
+                   style={{ width:`${pct}%` }} />
+            </div>
+          </div>
+
+          {/* question card */}
+          <div className="bg-white/[0.05] border border-white/[0.09] rounded-[22px] p-9
+                          backdrop-blur-xl shadow-[0_16px_48px_rgba(0,0,0,0.35)]">
+            <p className="text-[1.22rem] font-bold leading-[1.55] text-[#eaf2ff] mb-7">
+              {QUESTIONS[qIdx].q}
+            </p>
+            <div className="flex flex-col gap-[11px]">
+              {QUESTIONS[qIdx].a.map((ans, i) => (
+                <button
+                  key={`${qIdx}-${i}`}
+                  className={[
+                    'ans-btn',
+                    chosen === ans.type ? 'chosen' : '',
+                    chosen !== null && chosen !== ans.type ? 'dimmed' : '',
+                  ].join(' ')}
+                  disabled={chosen !== null}
+                  onClick={() => pick(ans.type)}
+                >
+                  {ans.t}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ────────────────────────────────────────────
+       SHARED FIELD
+    ──────────────────────────────────────────── */
+    function Field({ label, id, type='text', placeholder, value, onChange, error }) {
+      return (
+        <div className="mb-5">
+          <label htmlFor={id} className="block text-[0.83rem] font-medium text-[#8aafc8] mb-1.5">
+            {label}
+          </label>
+          <input id={id} type={type} value={value} onChange={onChange}
+            placeholder={placeholder} autoComplete="off" dir="rtl"
+            className={[
+              'w-full px-4 py-3 rounded-xl text-white placeholder-white/30 text-base',
+              'bg-white/[0.07] outline-none transition-all duration-200',
+              'focus:bg-white/[0.11] focus:ring-2 focus:ring-[#4a8fe8]/50',
+              error
+                ? 'border border-red-400/60'
+                : 'border border-white/[0.14] focus:border-[#4a8fe8]',
+            ].join(' ')}
+          />
+          {error && <p className="mt-1.5 text-red-400 text-xs font-medium">{error}</p>}
+        </div>
+      );
+    }
+
+    /* ────────────────────────────────────────────
+       SCREEN 3 — FORM  (shown after quiz)
+       Receives diagnosis_result, sends it with form data
+    ──────────────────────────────────────────── */
+    function FormScreen({ result, onSuccess }) {
+      const [form,      setForm]      = useState({ full_name:'', email:'' });
+      const [errors,    setErrors]    = useState({});
+      const [loading,   setLoading]   = useState(false);
+      const [serverErr, setServerErr] = useState('');
+
+      const set = k => e => setForm(p => ({ ...p, [k]: e.target.value }));
+
+      function validate() {
+        const e = {};
+        if (!form.full_name.trim()) e.full_name = 'שדה חובה';
+        if (!form.email.trim())     e.email     = 'שדה חובה';
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
+                                    e.email     = 'כתובת אימייל לא תקינה';
+        return e;
+      }
+
+      async function handleSubmit(ev) {
+        ev.preventDefault();
+        setServerErr('');
+        const errs = validate();
+        if (Object.keys(errs).length) { setErrors(errs); return; }
+        setErrors({});
+        setLoading(true);
+
+        /*
+         * diagnosis_result holds the Hebrew label of the winning type
+         * e.g. "פרפקציוניסטית" | "בלתי נראית" | "מאלתרת" | "התלמידה הנצחית"
+         */
+        const diagnosis_result = result.label;
+
+        try {
+          const res = await fetch(WEBHOOK, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              full_name:        form.full_name.trim(),
+              email:            form.email.trim(),
+              diagnosis_result,
+            }),
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          onSuccess(form.full_name.trim());
+        } catch (err) {
+          console.error(err);
+          setServerErr('שגיאה בשליחה. אנא נסי שנית.');
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      return (
+        <div className="animate-fade-up w-full max-w-[480px]">
+          <Logo />
+
+          <div className="bg-white/[0.055] border border-white/[0.09] rounded-3xl px-8 py-10
+                          backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.4)]">
+
+            <div className="text-center mb-7">
+              <span className="text-4xl block mb-3">🎯</span>
+              <h2 className="text-[1.6rem] font-extrabold text-white leading-snug mb-2">
+                כמעט שם!
+              </h2>
+              <p className="text-[#8aafc8] text-sm leading-relaxed">
+                הכניסי את הפרטים שלך ואשלח לך את האבחון המלא ישירות לאימייל
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmit} noValidate>
+              <Field label="שם מלא"       id="full_name" placeholder="ישראלה ישראלי"
+                     value={form.full_name} onChange={set('full_name')} error={errors.full_name} />
+              <Field label="כתובת אימייל" id="email"     type="email"  placeholder="you@example.com"
+                     value={form.email}     onChange={set('email')}     error={errors.email} />
+              <Field label="טלפון"        id="phone"     type="tel"    placeholder="050-0000000"
+                     value={form.phone}     onChange={set('phone')}     error={errors.phone} />
+
+              {serverErr && (
+                <div className="mb-4 px-4 py-3 rounded-xl text-sm font-medium
+                                bg-red-500/15 border border-red-400/30 text-red-300">
+                  {serverErr}
+                </div>
+              )}
+
+              <button type="submit" disabled={loading}
+                className="w-full mt-1 py-3.5 rounded-full font-bold text-base text-white
+                           bg-gradient-to-r from-[#4a8fe8] to-[#1e5fd4] cursor-pointer
+                           transition-all duration-200 flex items-center justify-center gap-2
+                           hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(74,143,232,0.45)]
+                           active:translate-y-0
+                           disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0">
+                {loading ? (
+                  <>
+                    <svg className="animate-spin-btn w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path  className="opacity-80"  fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    </svg>
+                    שולח...
+                  </>
+                ) : 'שלחי לי את האבחון המלא ←'}
+              </button>
+
+              <p className="text-center text-xs text-white/25 mt-4">
+                לא נשלח ספאם. הפרטים שלך מאובטחים.
+              </p>
+            </form>
+          </div>
+        </div>
+      );
+    }
+
+    /* ────────────────────────────────────────────
+       SCREEN 4 — RESULT (post-submission)
+    ──────────────────────────────────────────── */
+    function ResultScreen({ result, userName }) {
+      return (
+        <div className="animate-fade-up w-full max-w-[640px]">
+          <Logo />
+
+          {/* thank-you */}
+          <div className="text-center mb-8">
+            <div className="animate-check-pop inline-flex items-center justify-center
+                            w-20 h-20 rounded-full bg-emerald-500/20 border-2 border-emerald-400/40 mb-5">
+              <svg className="w-9 h-9 text-emerald-400" fill="none" viewBox="0 0 24 24"
+                   stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
+              </svg>
+            </div>
+            <h2 className="text-2xl font-extrabold text-white mb-2">
+              {userName ? `תודה, ${userName}! 🎉` : 'תודה! 🎉'}
+            </h2>
+            <p className="text-[#8aafc8] text-sm">הפרטים נקלטו. האבחון המלא בדרך אל האימייל שלך.</p>
+          </div>
+
+          {/* full result card */}
+          <div className="bg-white/[0.05] border border-white/[0.09] rounded-[22px] p-9
+                          backdrop-blur-xl shadow-[0_16px_48px_rgba(0,0,0,0.35)]">
+
+            {/* header */}
+            <div className="text-center mb-7">
+              <span className="text-[3.5rem] block mb-2">{result.emoji}</span>
+              <span className="inline-block px-4 py-1 rounded-full text-[0.8rem] font-semibold mb-3"
+                    style={{ background:result.hex+'22', color:result.hex, border:`1px solid ${result.hex}55` }}>
+                {result.label}
+              </span>
+              <h3 className="text-[1.9rem] font-extrabold text-white leading-snug">{result.title}</h3>
+            </div>
+
+            {/* description */}
+            <p className="text-[#c8ddf0] leading-[1.85] text-[1rem] mb-7">{result.desc}</p>
+
+            {/* steps */}
+            <p className="text-[0.9rem] font-bold text-[#f0c040] mb-4">✨ 3 צעדים ראשונים שלך:</p>
+            <ul className="flex flex-col gap-[10px]">
+              {result.steps.map((s, i) => (
+                <li key={i}
+                    className="bg-white/[0.04] rounded-[10px] px-4 py-3
+                               text-[#bdd4e8] text-[0.94rem] leading-[1.55]"
+                    style={{ borderInlineEnd:`3px solid #f0c040` }}>
+                  {s}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* CTA */}
+          <div className="text-center mt-8">
+            <p className="text-[#8aafc8] text-sm mb-4">רוצה ללמוד כיצד לשנות את זה? אני כאן בשבילך</p>
+            {/* ← Replace href with your booking / contact link */}
+            <a href="#contact"
+               className="inline-block bg-gradient-to-br from-[#4a8fe8] to-[#1e5fd4] text-white
+                          font-bold px-10 py-3.5 rounded-full text-base no-underline
+                          transition-all duration-200 shadow-[0_4px_20px_rgba(74,143,232,0.4)]
+                          hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(74,143,232,0.5)]">
+              אני רוצה לדעת יותר
+            </a>
+          </div>
+        </div>
+      );
+    }
+
+    /* ────────────────────────────────────────────
+       APP ROOT  — orchestrates all screens
+    ──────────────────────────────────────────── */
+    function App() {
+      // step: 'intro' | 'quiz' | 'form' | 'result'
+      const [step,     setStep]     = useState('intro');
+      const [result,   setResult]   = useState(null);   // computed after quiz
+      const [userName, setUserName] = useState('');
+
+      const handleQuizComplete = useCallback((scores) => {
+        setResult(calcResult(scores));
+        setStep('form');
+        window.scrollTo({ top:0, behavior:'smooth' });
+      }, []);
+
+      const handleFormSuccess = useCallback((name) => {
+        setUserName(name);
+        setStep('result');
+        window.scrollTo({ top:0, behavior:'smooth' });
+      }, []);
+
+      return (
+        <div className="relative min-h-screen flex flex-col items-center justify-center px-4 py-16">
+          <Background />
+          <div className="relative z-10 w-full flex flex-col items-center">
+            {step === 'intro'  && <IntroScreen   onStart={() => setStep('quiz')} />}
+            {step === 'quiz'   && <QuizScreen    onComplete={handleQuizComplete} />}
+            {step === 'form'   && <FormScreen    result={result} onSuccess={handleFormSuccess} />}
+            {step === 'result' && <ResultScreen  result={result} userName={userName} />}
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

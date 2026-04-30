@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>שאלון אבחון שיווקי</title>
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --navy:        #1a2a44;
+      --navy-mid:    #213357;
+      --navy-light:  #2a4170;
+      --accent:      #4a8fe8;
+      --accent-glow: rgba(74,143,232,0.35);
+      --gold:        #f0c040;
+      --white:       #ffffff;
+      --text-muted:  #8aafc8;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Heebo', Arial, sans-serif;
+      background: var(--navy);
+      min-height: 100vh;
+      color: var(--white);
+      overflow-x: hidden;
+      direction: rtl;
+    }
+
+    /* ══════════════════════════════════════
+       ANIMATED BACKGROUND
+    ══════════════════════════════════════ */
+    #bgCanvas {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .shape {
+      position: absolute;
+      opacity: 0;
+    }
+
+    .shape.circle {
+      border-radius: 50%;
+      border: 1.5px solid rgba(74,143,232,0.25);
+      animation: floatCircle linear infinite;
+    }
+
+    .shape.diamond {
+      border: 1.5px solid rgba(240,192,64,0.2);
+      animation: floatDiamond linear infinite;
+    }
+
+    @keyframes floatCircle {
+      0%   { transform: translateY(110vh); opacity: 0; }
+      6%   { opacity: 0.12; }
+      92%  { opacity: 0.12; }
+      100% { transform: translateY(-8vh); opacity: 0; }
+    }
+
+    @keyframes floatDiamond {
+      0%   { transform: translateY(110vh) rotate(45deg); opacity: 0; }
+      6%   { opacity: 0.1; }
+      92%  { opacity: 0.1; }
+      100% { transform: translateY(-8vh) rotate(225deg); opacity: 0; }
+    }
+
+    /* ══════════════════════════════════════
+       SCREENS
+    ══════════════════════════════════════ */
+    .screen {
+      display: none;
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 20px;
+    }
+    .screen.active { display: flex; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ══════════════════════════════════════
+       INTRO
+    ══════════════════════════════════════ */
+    .intro-wrap {
+      text-align: center;
+      max-width: 560px;
+      animation: fadeUp 0.8s ease both;
+    }
+
+    .logo-ring {
+      width: 108px;
+      height: 108px;
+      border-radius: 50%;
+      margin: 0 auto 30px;
+      overflow: hidden;
+      border: 3px solid var(--accent);
+      box-shadow: 0 0 0 6px rgba(74,143,232,0.15), 0 0 40px var(--accent-glow);
+      background: var(--navy-mid);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-ring img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .logo-ring .logo-fallback {
+      font-size: 2.4rem;
+    }
+
+    .intro-title {
+      font-size: 1.85rem;
+      font-weight: 800;
+      line-height: 1.4;
+      margin-bottom: 20px;
+      color: #fff;
+    }
+
+    .intro-sub {
+      font-size: 1.05rem;
+      color: var(--text-muted);
+      line-height: 1.75;
+      margin-bottom: 38px;
+    }
+
+    .intro-badges {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 36px;
+    }
+
+    .badge-pill {
+      background: rgba(74,143,232,0.12);
+      border: 1px solid rgba(74,143,232,0.25);
+      color: var(--accent);
+      padding: 6px 16px;
+      border-radius: 50px;
+      font-size: 0.82rem;
+      font-weight: 500;
+    }
+
+    /* ══════════════════════════════════════
+       SHARED BUTTON
+    ══════════════════════════════════════ */
+    .btn {
+      background: linear-gradient(135deg, #4a8fe8, #1e5fd4);
+      color: #fff;
+      border: none;
+      padding: 15px 44px;
+      border-radius: 50px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+      box-shadow: 0 4px 22px var(--accent-glow);
+      display: inline-block;
+    }
+
+    .btn:hover  { transform: translateY(-2px); box-shadow: 0 8px 32px var(--accent-glow); }
+    .btn:active { transform: translateY(0); }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+    .btn.full   { width: 100%; display: block; text-align: center; }
+
+    /* ══════════════════════════════════════
+       QUIZ
+    ══════════════════════════════════════ */
+    .quiz-wrap {
+      width: 100%;
+      max-width: 620px;
+      animation: fadeUp 0.45s ease both;
+    }
+
+    .progress-area {
+      margin-bottom: 26px;
+    }
+
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .progress-track {
+      height: 5px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), #7bbcff);
+      border-radius: 3px;
+      transition: width 0.45s cubic-bezier(.4,0,.2,1);
+    }
+
+    .q-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 22px;
+      padding: 38px 36px;
+      backdrop-filter: blur(12px);
+    }
+
+    .q-text {
+      font-size: 1.22rem;
+      font-weight: 700;
+      line-height: 1.55;
+      margin-bottom: 26px;
+      color: #eaf2ff;
+    }
+
+    .answers {
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+    }
+
+    .ans-btn {
+      background: rgba(255,255,255,0.055);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 13px;
+      padding: 15px 20px;
+      text-align: right;
+      color: #c2d8ef;
+      font-size: 0.96rem;
+      font-family: inherit;
+      font-weight: 400;
+      cursor: pointer;
+      line-height: 1.5;
+      transition: all 0.18s;
+    }
+
+    .ans-btn:hover {
+      background: rgba(74,143,232,0.14);
+      border-color: rgba(74,143,232,0.38);
+      color: #fff;
+      transform: translateX(-4px);
+    }
+
+    .ans-btn.chosen {
+      background: rgba(74,143,232,0.22);
+      border-color: var(--accent);
+      color: #fff;
+      transform: translateX(-4px);
+    }
+
+    .ans-btn.dimmed {
+      opacity: 0.35;
+    }
+
+    /* ══════════════════════════════════════
+       EMAIL CAPTURE
+    ══════════════════════════════════════ */
+    .email-card {
+      background: rgba(255,255,255,0.055);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 22px;
+      padding: 48px 44px;
+      width: 100%;
+      max-width: 480px;
+      text-align: center;
+      backdrop-filter: blur(12px);
+      animation: fadeUp 0.6s ease both;
+    }
+
+    .email-card .e-icon { font-size: 3.2rem; display: block; margin-bottom: 14px; }
+    .email-card h2 { font-size: 1.65rem; font-weight: 800; margin-bottom: 10px; }
+    .email-card .e-sub { color: var(--text-muted); line-height: 1.7; margin-bottom: 30px; font-size: 0.98rem; }
+
+    .field { margin-bottom: 14px; text-align: right; }
+    .field label { display: block; font-size: 0.83rem; color: var(--text-muted); margin-bottom: 6px; font-weight: 500; }
+    .field input {
+      width: 100%;
+      padding: 13px 16px;
+      border-radius: 11px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.07);
+      color: #fff;
+      font-size: 0.97rem;
+      font-family: inherit;
+      direction: rtl;
+      outline: none;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .field input:focus { border-color: var(--accent); background: rgba(255,255,255,0.1); }
+    .field input::placeholder { color: rgba(255,255,255,0.28); }
+
+    .privacy-note { font-size: 0.74rem; color: rgba(255,255,255,0.27); margin-top: 14px; }
+
+    /* ══════════════════════════════════════
+       RESULT
+    ══════════════════════════════════════ */
+    .result-wrap {
+      width: 100%;
+      max-width: 640px;
+      animation: fadeUp 0.7s ease both;
+    }
+
+    .result-top {
+      text-align: center;
+      margin-bottom: 26px;
+    }
+
+    .result-emoji { font-size: 4rem; display: block; margin-bottom: 10px; }
+
+    .type-badge {
+      display: inline-block;
+      padding: 5px 18px;
+      border-radius: 50px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-bottom: 14px;
+      letter-spacing: 0.03em;
+    }
+
+    .result-name {
+      font-size: 2.1rem;
+      font-weight: 800;
+      line-height: 1.3;
+    }
+
+    .result-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 22px;
+      padding: 34px 38px;
+      backdrop-filter: blur(12px);
+      margin-bottom: 16px;
+    }
+
+    .result-desc {
+      color: #c8ddf0;
+      line-height: 1.85;
+      font-size: 1.01rem;
+      margin-bottom: 26px;
+    }
+
+    .steps-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--gold);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .steps-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .steps-list li {
+      background: rgba(255,255,255,0.04);
+      border-inline-end: 3px solid var(--gold);
+      border-radius: 10px;
+      padding: 13px 16px;
+      color: #bdd4e8;
+      font-size: 0.94rem;
+      line-height: 1.55;
+    }
+
+    .result-cta {
+      text-align: center;
+      padding: 28px 0 0;
+    }
+
+    .result-cta p { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 18px; }
+
+    /* spinner */
+    .spin {
+      display: inline-block; width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff; border-radius: 50%;
+      animation: s 0.7s linear infinite; vertical-align: middle; margin-right: 6px;
+    }
+    @keyframes s { to { transform: rotate(360deg); } }
+
+    /* ══════════════════════════════════════
+       RESPONSIVE
+    ══════════════════════════════════════ */
+    @media (max-width: 520px) {
+      .intro-title  { font-size: 1.5rem; }
+      .q-card       { padding: 26px 20px; }
+      .q-text       { font-size: 1.08rem; }
+      .email-card   { padding: 34px 24px; }
+      .result-card  { padding: 24px 20px; }
+      .result-name  { font-size: 1.65rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── BACKGROUND ── -->
+<div id="bgCanvas"></div>
+
+<!-- ══════════════════════════════════════
+     SCREEN 1 — INTRO
+══════════════════════════════════════ -->
+<div class="screen active" id="s-intro">
+  <div class="intro-wrap">
+
+    <div class="logo-ring">
+      <img src="logo.png" alt="לוגו"
+           onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'logo-fallback',textContent:'✨'}))" />
+    </div>
+
+    <h1 class="intro-title">תוך 3 דקות תביני למה השיווק שלך לא מביא לקוחות</h1>
+    <p class="intro-sub">הכנתי עבורך שאלון אבחון קצר שבסיומו תקבלי אבחון ודרך פעולה למצב הנוכחי שלך, בואי נתחיל</p>
+
+    <div class="intro-badges">
+      <span class="badge-pill">⏱ 3 דקות בלבד</span>
+      <span class="badge-pill">11 שאלות</span>
+      <span class="badge-pill">אבחון אישי מיידי</span>
+    </div>
+
+    <button class="btn" onclick="startQuiz()">בואי נתחיל &larr;</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     SCREEN 2 — QUIZ
+══════════════════════════════════════ -->
+<div class="screen" id="s-quiz">
+  <div class="quiz-wrap">
+    <div class="progress-area">
+      <div class="progress-meta">
+        <span id="q-counter">שאלה 1 מתוך 11</span>
+        <span id="q-pct">9%</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-bar" id="p-bar" style="width:9%"></div>
+      </div>
+    </div>
+    <div class="q-card">
+      <p class="q-text" id="q-text"></p>
+      <div class="answers" id="answers"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     SCREEN 3 — EMAIL CAPTURE
+══════════════════════════════════════ -->
+<div class="screen" id="s-email">
+  <div class="email-card">
+    <span class="e-icon">🎯</span>
+    <h2>כמעט שם!</h2>
+    <p class="e-sub">הכניסי את הפרטים שלך ואשלח לך את תוצאות האבחון האישי ישירות לאימייל</p>
+
+    <div class="field">
+      <label>שם פרטי</label>
+      <input type="text" id="f-name" placeholder="ישראלה ישראלי" />
+    </div>
+    <div class="field">
+      <label>כתובת אימייל</label>
+      <input type="email" id="f-email" placeholder="you@example.com" />
+    </div>
+
+    <button class="btn full" id="send-btn" onclick="submitEmail()" style="margin-top:8px">
+      שלחי לי את התוצאות
+    </button>
+    <p class="privacy-note">לא נשלח ספאם. לעולם לא נשתף את הפרטים שלך.</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     SCREEN 4 — RESULT
+══════════════════════════════════════ -->
+<div class="screen" id="s-result">
+  <div class="result-wrap">
+    <div class="result-top">
+      <span class="result-emoji" id="r-emoji"></span>
+      <div class="type-badge" id="r-badge"></div>
+      <h2 class="result-name" id="r-title"></h2>
+    </div>
+    <div class="result-card">
+      <p class="result-desc" id="r-desc"></p>
+      <p class="steps-title">✨ 3 צעדים ראשונים שלך:</p>
+      <ul class="steps-list" id="r-steps"></ul>
+    </div>
+    <div class="result-cta">
+      <!-- ← Replace href with your booking/contact link -->
+      <p>רוצה ללמוד כיצד לשנות את זה? אני כאן בשבילך</p>
+      <a href="#contact" class="btn">אני רוצה לדעת יותר</a>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     EMAILJS SDK
+══════════════════════════════════════ -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   EMAILJS SETUP — replace the 4 values below:
+
+   1. EJS_PUBLIC_KEY  → emailjs.com → Account → API Keys → Public Key
+   2. EJS_SERVICE_ID  → Email Services → your service ID (e.g. "service_abc123")
+   3. EJS_TEMPLATE_ID → Email Templates → your template ID (e.g. "template_xyz789")
+   4. OWNER_EMAIL     → your own business email (receives a copy of every submission)
+
+   TEMPLATE VARIABLES to use inside your EmailJS template:
+     {{to_email}}     — subscriber's email (set as "To Email" in the template)
+     {{user_name}}    — subscriber's first name
+     {{result_title}} — result type title in Hebrew
+     {{result_desc}}  — full description paragraph
+     {{action_1}}     — first action step
+     {{action_2}}     — second action step
+     {{action_3}}     — third action step
+     {{owner_email}}  — your email (use in BCC or a second recipient)
+═══════════════════════════════════════════════════════════════ */
+const EJS_PUBLIC_KEY   = 'YOUR_PUBLIC_KEY';
+const EJS_SERVICE_ID   = 'YOUR_SERVICE_ID';
+const EJS_TEMPLATE_ID  = 'YOUR_TEMPLATE_ID';
+const OWNER_EMAIL      = 'YOUR_BUSINESS_EMAIL@example.com';
+
+emailjs.init(EJS_PUBLIC_KEY);
+
+/* ═══════════════════════════════════════════════════════════════
+   QUESTIONS  (P = פרפקציוניסטית | B = בלתי נראית |
+               M = מאלתרת         | T = התלמידה הנצחית)
+═══════════════════════════════════════════════════════════════ */
+const QUESTIONS = [
+  {
+    q: "מה קורה כשאת מתכננת לפרסם תוכן?",
+    a: [
+      { t: "אני בודקת ועורכת שוב ושוב עד שזה נשמע מושלם לחלוטין", type: "P" },
+      { t: "אני נרתעת ולא מפרסמת — בטוח אף אחד ממילא לא ישים לב", type: "B" },
+      { t: "אני מפרסמת ספונטנית מה שמתחשק לי ברגע נתון", type: "M" },
+      { t: "אני עדיין לומדת איך לכתוב תוכן שיווקי נכון לפני שמתחילה", type: "T" }
+    ]
+  },
+  {
+    q: "מה את מרגישה כשצריך לשתף תמונה שלך ברשתות החברתיות?",
+    a: [
+      { t: "רק אם התמונה מושלמת ועברה עריכה מקצועית — אחרת לא יוצאת", type: "P" },
+      { t: "לא נוח לי בכלל, אני מעדיפה להישאר מאחורי הקלעים", type: "B" },
+      { t: "מעלה כל תמונה שנראית לי בסדר — פשוט ומהיר", type: "M" },
+      { t: "עדיין לא מצאתי את הסטייל הנכון שלי לרשתות", type: "T" }
+    ]
+  },
+  {
+    q: "כשלקוח פוטנציאלי שואל על המחיר שלך, את...",
+    a: [
+      { t: "מסבירה ומצדיקה הרבה כדי שיהיה ברור שזה שווה כל שקל", type: "P" },
+      { t: "מבולבלת ולא בטוחה כמה לבקש, ולפעמים מוותרת על המחיר", type: "B" },
+      { t: "נותנת מחיר שונה בהתאם לאיך שמרגישה באותו יום", type: "M" },
+      { t: "עוד לא קבעתי מחירים ברורים, עדיין חוקרת את השוק", type: "T" }
+    ]
+  },
+  {
+    q: "מה קורה כשאת צריכה לבקש המלצה מלקוח מרוצה?",
+    a: [
+      { t: "מחכה לרגע ולניסוח המושלמים — ולכן זה בדרך כלל לא קורה", type: "P" },
+      { t: "לא מבקשת, לא נוח לי להטריד אנשים גם אם הם מרוצים", type: "B" },
+      { t: "לפעמים כן, לפעמים שוכחת — אין לי שיטה קבועה", type: "M" },
+      { t: "לא הכנתי עדיין תבנית מסודרת לבקשת המלצה אז דחיתי את זה", type: "T" }
+    ]
+  },
+  {
+    q: "איך את מגדירה את קהל היעד שלך?",
+    a: [
+      { t: "יש לי הגדרה מפורטת מאוד אבל עדיין מרגישה שהיא לא מושלמת", type: "P" },
+      { t: "קשה לי לצמצם — אני לא רוצה להדיר אף אחד", type: "B" },
+      { t: "אני פונה למי שנראה לי רלוונטי בכל פעם מחדש", type: "M" },
+      { t: "קראתי הרבה על קהלי יעד אבל עדיין לא הגדרתי בצורה ממשית", type: "T" }
+    ]
+  },
+  {
+    q: "כמה זמן לוקח לך להוציא פוסט שיווקי אחד לאוויר?",
+    a: [
+      { t: "שעות — אני עורכת, מוחקת וכותבת מחדש עד שזה נשמע מדויק", type: "P" },
+      { t: "לא משנה כמה זמן, רוב הפוסטים שלי נשארים בטיוטה בלי לצאת", type: "B" },
+      { t: "רבע שעה מקסימום — כותבת, מפרסמת, ממשיכה הלאה", type: "M" },
+      { t: "עוד לא פרסמתי, מחכה שיהיה לי קול אותנטי ברור יותר", type: "T" }
+    ]
+  },
+  {
+    q: "מה קורה כשמתחרה שלך מפרסמת משהו דומה למה שאת עושה?",
+    a: [
+      { t: "אני בודקת שהתוכן שלי מדויק ומושלם יותר מהמתחרה", type: "P" },
+      { t: "אני חושבת שהיא כבר תפסה את המקום ואין לי מה להוסיף", type: "B" },
+      { t: "מתעלמת לחלוטין ומפרסמת מה שבא לי מבלי להסתכל עליה", type: "M" },
+      { t: "מתחילה ללמוד ממנה כדי להבין מה היא עושה שאני עדיין לא", type: "T" }
+    ]
+  },
+  {
+    q: "איך נראה לוח הפרסום שלך ברשתות החברתיות?",
+    a: [
+      { t: "יש לי לוח מתוכנן אבל לרוב לא עומדת בו כי הפוסטים לא מוכנים בזמן", type: "P" },
+      { t: "פרסמתי תקופה ואז הפסקתי כשלא ראיתי תגובות", type: "B" },
+      { t: "אין לי לוח קבוע — מפרסמת כשבא לי ועוצרת כשקשה", type: "M" },
+      { t: "עדיין בשלב ההכנה, לא התחלתי לפרסם באופן קבוע", type: "T" }
+    ]
+  },
+  {
+    q: "מה עולה לך בראש כשאת שומעת את המילים \"מיתוג אישי\"?",
+    a: [
+      { t: "יודעת שזה חשוב, אבל בכל פעם שמתחילה זה לא נראה מספיק נכון", type: "P" },
+      { t: "אני מעדיפה לשים את הלקוחות במרכז ולא להיות \"פרזנטורית\"", type: "B" },
+      { t: "יש לי צבעים וסלוגן שעשיתי בעצמי — זה מספיק לי כרגע", type: "M" },
+      { t: "קראתי הרבה על מיתוג אבל עדיין מחכה שיהיה לי יותר ברור", type: "T" }
+    ]
+  },
+  {
+    q: "מה קורה כשאת מקבלת תגובה שלילית על תוכן שפרסמת?",
+    a: [
+      { t: "נעלבת עמוקות ולוקח לי זמן להתאושש ולחזור לפרסם", type: "P" },
+      { t: "זה מאשש שעדיף לא להיות נראית יותר מדי ברשתות", type: "B" },
+      { t: "מגיבה מיד ועוברת הלאה — לא לוקחת את זה יותר מדי ללב", type: "M" },
+      { t: "כותבת לעצמי הערות ומיד מחפשת קורס לשיפור הכתיבה שלי", type: "T" }
+    ]
+  },
+  {
+    q: "מה המשפט הכי קרוב לאמת לגבי השיווק שלך כרגע?",
+    a: [
+      { t: "\"יש לי הרבה תוכן מוכן שעדיין לא יצא לאוויר\"", type: "P" },
+      { t: "\"אנשים לא ממש יודעים שאני קיימת ומה אני עושה\"", type: "B" },
+      { t: "\"אני פעילה ברשתות אבל ללא כיוון ברור ועקביות\"", type: "M" },
+      { t: "\"אני עדיין מכינה את עצמי לפני שאתחיל ברצינות\"", type: "T" }
+    ]
+  }
+];
+
+/* ═══════════════════════════════════════════════════════════════
+   RESULT PROFILES
+═══════════════════════════════════════════════════════════════ */
+const RESULTS = {
+  P: {
+    emoji: "💜",
+    badge: "הפרפקציוניסטית",
+    badgeHex: "#7c3aed",
+    title: "את הפרפקציוניסטית",
+    desc: "השיווק שלך לא מביא לקוחות כי את מחכה שהכל יהיה מושלם לפני שמפרסמות. כותבת פוסט 10 פעמים, משנה עיצובים שוב ושוב, ובסוף לא מפרסמת כי \"עוד לא מוכן\". הפחד מביקורת גדול מהרצון להתקדם. הבשורה הטובה? כישרון וסטנדרטים גבוהים יש לך בשפע — צריך רק לשחרר.",
+    steps: [
+      "קבעי לעצמך כלל ברזל: כל תוכן שעברו עליו 30 דקות — יוצא, בלי עוד עריכות",
+      "אמצי את שיטת ה-80/20: פוסט ב-80% מוכנות שיצא לאוויר עדיף על 100% שנשאר בטיוטה לנצח",
+      "פרסמי פוסט ניסיוני קטן אחד השבוע ללא עריכה נוספת — ותוכיחי לעצמך שהעולם לא נגמר"
+    ]
+  },
+  B: {
+    emoji: "💙",
+    badge: "הבלתי נראית",
+    badgeHex: "#1d6fb8",
+    title: "את הבלתי נראית",
+    desc: "את יודעת מה לעשות ומה את שווה — אבל מתחבאת מאחורי הכלים, המוצרים, המקצוע. לקוחות צריכים לסמוך עליך ולהכיר אותך אישית, אבל הם לא יכולים כי את פשוט לא נוכחת. הסיבה היא לרוב פחד מחשיפה, לא חוסר ידע. נוכחות קטנה ואמיתית חזקה פי אלף מהיעדרות מוחלטת.",
+    steps: [
+      "התחייבי לשתף תמונה אחת שלך בשבוע — לא חייב מקצועי, גם תמונה ביתית אמיתית מספיקה",
+      "כתבי פוסט אחד בשבוע בגוף ראשון שמדבר על עצמך, על הדרך שעברת ועל מה שאת מאמינה בו",
+      "הגיבי על 3 שאלות בקבוצות פייסבוק רלוונטיות — זו הדרך הכי מהירה להתחיל להיראות כמומחית"
+    ]
+  },
+  M: {
+    emoji: "🧡",
+    badge: "המאלתרת",
+    badgeHex: "#c2410c",
+    title: "את המאלתרת",
+    desc: "יש לך אנרגיה, יצירתיות ורצון אמיתי — אבל השיווק שלך לא עקבי ולא אסטרטגי. מפרסמת כשמתחשק, עוצרת כשקשה, מתחילה מחדש שוב ושוב. ללקוחות קשה לסמוך על מישהי שנעלמת ומופיעה לסירוגין. הבשורה הטובה? יש לך בסיס מצוין — צריך רק מסגרת פשוטה ועקבית.",
+    steps: [
+      "בחרי 2 פלטפורמות בלבד והתמקדי בהן — פיזור יוצר אשליה של עשייה בלי תוצאות",
+      "קבעי יום ושעה קבועים בשבוע לכתיבת תוכן ותמסרי לזה כמו לפגישת לקוח חשובה",
+      "צרי קובץ \"בנק תוכן\" עם 20 רעיונות מוכנים — כך לא תיפלי לקיפאון בימים שקשה"
+    ]
+  },
+  T: {
+    emoji: "💚",
+    badge: "התלמידה הנצחית",
+    badgeHex: "#15803d",
+    title: "את התלמידה הנצחית",
+    desc: "את רוכשת קורסים, קוראת ספרים, עוקבת אחרי מומחים — ובאמת לומדת ומתעמקת. אבל הלמידה הפכה לתירוץ לא להתחיל. \"עוד קורס אחד ואז אתחיל\" — אבל האחד הזה תמיד מצטרף לאחד נוסף. הידע שיש לך עכשיו מספיק כדי להתחיל. לקוחות לא צריכות שתהיי מושלמת — הם צריכות שתהיי נוכחת.",
+    steps: [
+      "בחרי קורס אחד שסיימת — ויישמי ממנו שלוש פעולות קונקרטיות עד סוף השבוע הזה",
+      "קבעי לעצמך כלל 1:1: על כל שעת למידה חדשה — שעת יישום מיידית. בלי פשרות",
+      "פרסמי את הפוסט הראשון שלך עד מחר בצהריים — גם אם הוא לא מושלם. הפרפקציה מגיעה מהפרקטיקה"
+    ]
+  }
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════════════════════ */
+let qIdx   = 0;
+let scores = { P: 0, B: 0, M: 0, T: 0 };
+
+/* ═══════════════════════════════════════════════════════════════
+   BACKGROUND
+═══════════════════════════════════════════════════════════════ */
+(function buildBG() {
+  const defs = [
+    { w: 70,  left: '8%',  delay: 0,  dur: 19, type: 'circle'  },
+    { w: 42,  left: '22%', delay: 4,  dur: 24, type: 'diamond' },
+    { w: 90,  left: '38%', delay: 7,  dur: 27, type: 'circle'  },
+    { w: 28,  left: '54%', delay: 1,  dur: 17, type: 'diamond' },
+    { w: 58,  left: '68%', delay: 9,  dur: 21, type: 'circle'  },
+    { w: 48,  left: '82%', delay: 5,  dur: 29, type: 'diamond' },
+    { w: 22,  left: '4%',  delay: 12, dur: 15, type: 'circle'  },
+    { w: 75,  left: '48%', delay: 14, dur: 23, type: 'diamond' },
+    { w: 36,  left: '91%', delay: 2,  dur: 20, type: 'circle'  },
+    { w: 52,  left: '29%', delay: 17, dur: 26, type: 'diamond' },
+    { w: 18,  left: '63%', delay: 8,  dur: 18, type: 'circle'  },
+    { w: 62,  left: '14%', delay: 11, dur: 22, type: 'diamond' },
+  ];
+  const canvas = document.getElementById('bgCanvas');
+  defs.forEach(d => {
+    const el = document.createElement('div');
+    el.className = `shape ${d.type}`;
+    el.style.cssText =
+      `width:${d.w}px;height:${d.w}px;left:${d.left};bottom:-${d.w+10}px;` +
+      `animation-duration:${d.dur}s;animation-delay:${d.delay}s;`;
+    canvas.appendChild(el);
+  });
+})();
+
+/* ═══════════════════════════════════════════════════════════════
+   NAVIGATION
+═══════════════════════════════════════════════════════════════ */
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   QUIZ
+═══════════════════════════════════════════════════════════════ */
+function startQuiz() {
+  qIdx   = 0;
+  scores = { P: 0, B: 0, M: 0, T: 0 };
+  show('s-quiz');
+  renderQ();
+}
+
+function renderQ() {
+  const total = QUESTIONS.length;
+  const pct   = Math.round(((qIdx + 1) / total) * 100);
+
+  document.getElementById('q-counter').textContent = `שאלה ${qIdx + 1} מתוך ${total}`;
+  document.getElementById('q-pct').textContent      = `${pct}%`;
+  document.getElementById('p-bar').style.width      = `${pct}%`;
+  document.getElementById('q-text').textContent     = QUESTIONS[qIdx].q;
+
+  const grid = document.getElementById('answers');
+  grid.innerHTML = '';
+  QUESTIONS[qIdx].a.forEach(ans => {
+    const b = document.createElement('button');
+    b.className   = 'ans-btn';
+    b.textContent = ans.t;
+    b.onclick     = () => pick(ans.type, b);
+    grid.appendChild(b);
+  });
+}
+
+function pick(type, el) {
+  document.querySelectorAll('.ans-btn').forEach(b => {
+    b.classList.add(b === el ? 'chosen' : 'dimmed');
+    b.disabled = true;
+  });
+  scores[type]++;
+  setTimeout(() => {
+    qIdx++;
+    if (qIdx < QUESTIONS.length) { renderQ(); }
+    else                          { show('s-email'); }
+  }, 480);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   EMAIL SUBMIT + SEND
+═══════════════════════════════════════════════════════════════ */
+function topType() {
+  return Object.keys(scores).reduce((a, b) => scores[a] >= scores[b] ? a : b);
+}
+
+async function submitEmail() {
+  const name  = document.getElementById('f-name').value.trim();
+  const email = document.getElementById('f-email').value.trim();
+
+  if (!name)  { alert('נא להכניס שם פרטי'); return; }
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    alert('נא להכניס כתובת אימייל תקינה');
+    return;
+  }
+
+  const btn = document.getElementById('send-btn');
+  btn.innerHTML = '<span class="spin"></span> שולח...';
+  btn.disabled  = true;
+
+  const type   = topType();
+  const result = RESULTS[type];
+
+  // Show result immediately — don't wait for email
+  renderResult(result, name);
+  show('s-result');
+
+  // Send email in background
+  try {
+    await emailjs.send(EJS_SERVICE_ID, EJS_TEMPLATE_ID, {
+      to_email:      email,
+      owner_email:   OWNER_EMAIL,
+      user_name:     name,
+      result_type:   type,
+      result_title:  result.title,
+      result_desc:   result.desc,
+      action_1:      result.steps[0],
+      action_2:      result.steps[1],
+      action_3:      result.steps[2],
+    });
+  } catch (err) {
+    // Result already visible — silently log
+    console.warn('EmailJS send failed:', err);
+  }
+}
+
+function renderResult(r, name) {
+  document.getElementById('r-emoji').textContent = r.emoji;
+  document.getElementById('r-title').textContent =
+    name ? `${name}, ${r.title}` : r.title;
+  document.getElementById('r-desc').textContent  = r.desc;
+
+  const badge = document.getElementById('r-badge');
+  badge.textContent        = r.badge;
+  badge.style.background   = r.badgeHex + '22';
+  badge.style.color        = r.badgeHex;
+  badge.style.border       = `1px solid ${r.badgeHex}55`;
+
+  document.getElementById('r-steps').innerHTML =
+    r.steps.map(s => `<li>${s}</li>`).join('');
+}
+</script>
+</body>
+</html>

@@ -959,7 +959,11 @@
                 diagnosis_description: profile.desc,
               }),
             }),
-            addToRavMesser(form.email.trim(), ''),
+            fetch('/api/subscribe', {
+              method:'POST',
+              headers:{ 'Content-Type':'application/json' },
+              body: JSON.stringify({ email: form.email.trim() }),
+            }),
           ]);
           onSuccess(form.email.trim());
         } catch (err) {
