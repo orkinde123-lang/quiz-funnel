@@ -1099,31 +1099,70 @@
     /* ══════════════════════════════════════
        RESULT SCREEN
     ══════════════════════════════════════ */
-    function CTABox() {
+    function CTABox({ profileKey }) {
+      const nextSteps = {
+        P: "נבין ביחד איך לשחרר תכנים בלי שהפרפקציוניזם יעצור אותך",
+        T: "נגדיר ביחד איזו פעולה אחת תחליף שעות של לימוד",
+        M: "נבנה ביחד שיטה עקבית אחת שתפסיקי לחפש אחריה",
+        B: "נמצא ביחד את הצעד הראשון שיחזיר אותך לאוויר",
+      };
+      const personalLine = profileKey && nextSteps[profileKey]
+        ? nextSteps[profileKey]
+        : "נזהה ביחד בדיוק מה עוצר אותך ואיך יוצאים מזה";
+
       return (
         <div className="cta-box">
           <div style={{ position:'relative', zIndex:1 }}>
+
+            {/* Badge */}
             <div style={{
-              display:'inline-block',
-              background:'rgba(224,225,221,0.12)',
-              border:'1px solid rgba(224,225,221,0.20)',
-              color:'rgba(224,225,221,0.70)',
-              fontSize:'.76rem', fontWeight:700, letterSpacing:'.07em',
-              padding:'4px 16px', borderRadius:'99px', marginBottom:20,
+              display:'inline-flex', alignItems:'center', gap:8,
+              background:'rgba(224,225,221,0.10)',
+              border:'1px solid rgba(224,225,221,0.18)',
+              color:'rgba(224,225,221,0.60)',
+              fontSize:'.75rem', fontWeight:700, letterSpacing:'.08em',
+              padding:'5px 16px', borderRadius:'99px', marginBottom:22,
             }}>
-              הצעד הבא שלך
+              <span style={{ width:6, height:6, borderRadius:'50%', background:'rgba(224,225,221,0.5)', display:'inline-block' }} />
+              שיחת הפיצוח · 60 דקות · חינם
             </div>
-            <p style={{ fontSize:'1.05rem', lineHeight:1.8, marginBottom:26, fontWeight:500, color:'rgba(224,225,221,0.90)' }}>
-              רוצה להבין איך השינוי יכול להתאים בעסק שלך?<br />
-              הטמעה של הידע הזה יכולה לקחת אותך לשם<br />
-              בהרבה פחות עבודה, מאמץ ותסכול.
+
+            {/* Headline */}
+            <h3 style={{
+              color:'#e0e1dd', fontSize:'1.32rem', fontWeight:800,
+              margin:'0 0 14px', lineHeight:1.4, letterSpacing:'-0.01em',
+            }}>
+              כבר יש לך את האבחון.<br />
+              עכשיו נהפוך אותו לתכנית.
+            </h3>
+
+            {/* Personal line */}
+            <p style={{
+              color:'rgba(224,225,221,0.78)', fontSize:'.97rem',
+              lineHeight:1.75, marginBottom:10, fontWeight:400,
+            }}>
+              {personalLine}.
             </p>
-            <p style={{ fontSize:'.97rem', fontWeight:700, color:'#e0e1dd', marginBottom:28 }}>
-              כאן תוכלי לקבל פגישת אבחון של 90 דק׳ ללא עלות.
+            <p style={{
+              color:'rgba(224,225,221,0.78)', fontSize:'.97rem',
+              lineHeight:1.75, marginBottom:28, fontWeight:400,
+            }}>
+              ב-60 דקות ביחד נצא עם צעד ראשון אחד ברור שתוכלי לעשות כבר השבוע.
             </p>
+
+            {/* CTA */}
             <a href="#" className="cta-btn">
-              לעבור לשלב הבא ←
+              אני רוצה שיחת פיצוח ←
             </a>
+
+            {/* Trust */}
+            <p style={{
+              marginTop:16, fontSize:'.78rem',
+              color:'rgba(224,225,221,0.38)', fontWeight:500,
+            }}>
+              ללא עלות · ללא התחייבות
+            </p>
+
           </div>
         </div>
       );
@@ -1213,7 +1252,7 @@
 
             {/* Top CTA */}
             <div style={{ marginTop:'-32px', animation:'fadeUp 0.6s 0.1s cubic-bezier(.16,1,.3,1) both' }}>
-              <CTABox />
+              <CTABox profileKey={profile.key} />
             </div>
 
             {/* Diagnosis */}
@@ -1297,7 +1336,7 @@
 
             {/* Footer CTA */}
             <div style={{ marginTop:16, animation:'fadeUp 0.6s 0.7s cubic-bezier(.16,1,.3,1) both' }}>
-              <CTABox />
+              <CTABox profileKey={profile.key} />
             </div>
 
           </div>
