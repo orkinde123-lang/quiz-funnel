@@ -590,37 +590,17 @@
         <div className="animate-fade-up text-center w-full" style={{ maxWidth:600 }}>
           <Logo />
 
-          {/* Badge — HeroGeometric dot style */}
-          <div style={{
-            display:'inline-flex', alignItems:'center', gap:8,
-            background:'rgba(255,255,255,0.03)',
-            border:'1px solid rgba(224,225,221,0.08)',
-            color:'rgba(224,225,221,0.55)',
-            fontSize:'.82rem', fontWeight:500,
-            letterSpacing:'.04em',
-            padding:'6px 18px',
-            borderRadius:'99px',
-            marginBottom:28,
-          }}>
-            <span style={{
-              width:7, height:7, borderRadius:'50%',
-              background:'rgba(130,147,177,0.75)',
-              display:'inline-block', flexShrink:0,
-            }} />
-            שאלון אבחון שיווקי חינמי
-          </div>
-
           {/* Gradient heading */}
           <h1 style={{
-            fontSize:'clamp(1.9rem, 5.5vw, 2.8rem)',
+            fontSize:'clamp(1.75rem, 4.8vw, 2.5rem)',
             fontWeight:800,
             lineHeight:1.3,
             margin:'0 0 20px',
             letterSpacing:'-0.02em',
+            whiteSpace:'nowrap',
           }}>
-            <span className="grad-line1">תוך 3 דקות תביני</span>
-            <br />
-            <span className="grad-line2">למה השיווק שלך לא מביא לקוחות</span>
+            <span className="grad-line1" style={{ display:'block' }}>תוך 3 דקות תביני</span>
+            <span className="grad-line2" style={{ display:'block', whiteSpace:'nowrap' }}>למה השיווק שלך לא מביא לקוחות</span>
           </h1>
 
           <p style={{
@@ -637,24 +617,7 @@
             איפה השיווק שלך תקוע ואיך להתקדם מכאן לשלב הבא
           </p>
 
-          {/* Tags */}
-          <div style={{ display:'flex', flexWrap:'wrap', justifyContent:'center', gap:10, marginBottom:44 }}>
-            {['⏱ 3 דקות בלבד', '9 שאלות', 'אבחון אישי מיידי'].map(tag => (
-              <span key={tag} style={{
-                background:'rgba(70,89,117,0.18)',
-                border:'1px solid rgba(130,147,177,0.18)',
-                color:'rgba(130,147,177,0.85)',
-                padding:'7px 18px',
-                borderRadius:'99px',
-                fontSize:'.83rem',
-                fontWeight:500,
-              }}>
-                {tag}
-              </span>
-            ))}
-          </div>
-
-          <button onClick={onStart} style={{
+          <button onClick={onStart} style={{ marginTop:8 }} style={{
             background: 'linear-gradient(145deg, #465975 0%, #2a4060 100%)',
             border: '1px solid rgba(130,147,177,0.25)',
             color: '#e0e1dd',
@@ -973,16 +936,9 @@
             </div>
 
             <form onSubmit={handleSubmit} noValidate>
-              <Field label="כתובת אימייל" id="email" type="email" placeholder="you@example.com"
+              <Field label="כתובת אימייל" id="email" type="email" placeholder="your@email.com"
                      value={form.email} onChange={set('email')} onBlur={handleEmailBlur}
                      error={errors.email} hint={emailHint} valid={emailValid} />
-              <p style={{
-                fontSize:'.80rem', color:'rgba(130,147,177,0.55)',
-                margin:'-12px 0 18px', fontWeight:500,
-                display:'flex', alignItems:'center', gap:5,
-              }}>
-                🔒 אנחנו מתחייבים לשמור על פרטיות
-              </p>
               {emailHint && !errors.email && (
                 <div style={{ marginTop:-12, marginBottom:16 }}>
                   <button type="button" onClick={applyEmailSuggestion} style={{
@@ -1044,10 +1000,13 @@
                     </div>
                   </div>
                   <span style={{
-                    fontSize:'.83rem', color:'rgba(130,147,177,0.80)',
-                    fontWeight:500, lineHeight:1.55,
+                    fontSize:'.80rem', color:'rgba(130,147,177,0.75)',
+                    fontWeight:400, lineHeight:1.6,
                   }}>
-                    אני מאשר/ת קבלת דיוורים, תכנים ועדכונים לכתובת המייל שלי
+                    אני מאשר/ת קבלת דברי פרסומת, עדכונים ותוכן שיווקי מאור קינדה, באמצעות דוא״ל, בהתאם ל־{' '}
+                    <a href="#" style={{ color:'rgba(130,147,177,0.90)', textDecoration:'underline', textUnderlineOffset:2 }}>
+                      מדיניות הפרטיות
+                    </a>
                   </span>
                 </label>
                 {consentErr && (
@@ -1086,9 +1045,10 @@
 
               <p style={{
                 textAlign:'center', fontSize:'.78rem',
-                color:'rgba(130,147,177,0.40)', marginTop:16, fontWeight:400,
+                color:'rgba(130,147,177,0.42)', marginTop:14, fontWeight:400,
+                display:'flex', alignItems:'center', justifyContent:'center', gap:5,
               }}>
-                לא נשלח ספאם · הפרטים שלך מאובטחים
+                🔒 הפרטים שלך מאובטחים ולא יועברו לצד שלישי
               </p>
             </form>
           </div>
