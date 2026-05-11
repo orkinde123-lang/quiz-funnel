@@ -322,31 +322,11 @@
 
     const WEBHOOK = 'https://hook.eu1.make.com/22713122q3hk52f8lbvhrvqcgrbqnc9p';
 
-    /* ── RavMesser config ── */
-    const RM_BASE        = 'https://graph.responder.live/v2';
-    const RM_CLIENT_ID   = '143';
-    const RM_SECRET      = '4oehPjI7ZJhOg6K9bP4zam0XTec147EfS9DSW2S0';
-    const RM_USER_TOKEN  = 'a208b32e03c8e0a756cfbab7b4dc84c549628ab3fd0f9c4d98c60e7976a9ce95';
-    const RM_LIST_ID     = 97929;
-
-    async function getRmToken() {
-      const res = await fetch(`${RM_BASE}/oauth/token`, {
+    async function addToRavMesser(email) {
+      await fetch('/api/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ client_id: RM_CLIENT_ID, client_secret: RM_SECRET, user_token: RM_USER_TOKEN, grant_type: 'client_credentials' }),
-      });
-      const d = await res.json();
-      if (!d.token) throw new Error('RM auth failed');
-      return d.token;
-    }
-
-    async function addToRavMesser(email, fullName) {
-      const token = await getRmToken();
-      const parts = (fullName || '').trim().split(' ');
-      await fetch(`${RM_BASE}/subscribers`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, list_ids: [RM_LIST_ID], first: parts[0] || '', last: parts.slice(1).join(' '), override: true, rejoin: true }),
+        body: JSON.stringify({ email, full_name: '' }),
       });
     }
 
@@ -959,11 +939,7 @@
                 diagnosis_description: profile.desc,
               }),
             }),
-            fetch('/api/subscribe', {
-              method:'POST',
-              headers:{ 'Content-Type':'application/json' },
-              body: JSON.stringify({ email: form.email.trim() }),
-            }),
+            addToRavMesser(form.email.trim()),
           ]);
           onSuccess(form.email.trim());
         } catch (err) {
@@ -1151,7 +1127,7 @@
             </p>
 
             {/* CTA */}
-            <a href="https://or-kinde-pitzuach.vercel.app/" className="cta-btn">
+            <a href="https://or-kinde-pitzuach.vercel.app/consultation" className="cta-btn">
               אני רוצה שיחת פיצוח ←
             </a>
 
